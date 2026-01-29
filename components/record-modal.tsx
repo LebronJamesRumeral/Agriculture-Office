@@ -10,30 +10,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { X, Edit2, QrCode, FileSpreadsheet } from 'lucide-react'
+import { X, QrCode, FileSpreadsheet } from 'lucide-react'
 import { useEffect, useState } from 'react'
-
-interface Record {
-  id: number
-  name: string
-  type: 'Farmer' | 'Fisherfolk'
-  barangay: string
-  contactNumber: string
-  cropType: string
-  yearsExperience: number
-  createdAt: string
-  status?: 'Active' | 'Inactive'
-}
+import type { Farmer } from '@/lib/farmers-service'
 
 interface RecordModalProps {
-  record: Record | null
+  record: Farmer | null
   isOpen: boolean
   onClose: () => void
   mode: 'view' | 'edit'
 }
 
 export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps) {
-  const [editData, setEditData] = useState<Record | null>(null)
+  const [editData, setEditData] = useState<Farmer | null>(null)
   const [localMode, setLocalMode] = useState<'view' | 'edit'>(mode)
 
   // Keep internal state in sync when a record is selected
@@ -46,24 +35,14 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
 
   const current = editData ?? record
 
-  const handleSave = () => {
-    // Mock save - in real app, would call API
-    setLocalMode('view')
-  }
-
-  const handleCancel = () => {
-    if (record) setEditData(record)
-    setLocalMode('view')
-  }
-
   const handleGenerateQR = async () => {
     try {
       const QR = await import('qrcode')
-      const data = JSON.stringify(current)
+      const data = current.qr_code
       const url = await QR.toDataURL(data, { margin: 2, width: 512 })
       const a = document.createElement('a')
       a.href = url
-      a.download = `record-${current.id}-qr.png`
+      a.download = `${current.full_name}-qr.png`
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -74,22 +53,41 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
 
   const handleExportExcel = async () => {
     try {
-      const XLSX = await import('xlsx')
-      const row = {
-        ID: current.id,
-        Name: current.name,
-        Type: current.type,
-        Barangay: current.barangay,
-        Contact: current.contactNumber,
-        CropFishType: current.cropType,
-        YearsExperience: current.yearsExperience,
-        Status: current.status ?? '',
-        RegisteredOn: current.createdAt,
-      }
-      const ws = XLSX.utils.json_to_sheet([row])
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, ws, 'Record')
-      XLSX.writeFile(wb, `record-${current.id}.xlsx`)
+      const ExcelJS = await import('exceljs')
+      const workbook = new ExcelJS.default.Workbook()
+      const worksheet = workbook.addWorksheet('Record')
+      
+      worksheet.columns = [
+        { header: 'Field', key: 'field', width: 20 },
+        { header: 'Value', key: 'value', width: 40 },
+      ]
+      
+      worksheet.addRows([
+        { field: 'QR Code', value: current.qr_code },
+        { field: 'Full Name', value: current.full_name },
+        { field: 'Type', value: current.farmer_type === 'farmer' ? 'Farmer' : 'Fisherfolk' },
+        { field: 'Barangay', value: current.barangay },
+        { field: 'Municipality', value: current.municipality },
+        { field: 'Address', value: current.address },
+        { field: 'Phone', value: current.phone || 'N/A' },
+        { field: 'Email', value: current.email || 'N/A' },
+        { field: 'Crop Type', value: current.crop_type || 'N/A' },
+        { field: 'Farm Size', value: current.farm_size ? `${current.farm_size} ha` : 'N/A' },
+        { field: 'Fishing Vessel', value: current.fishing_vessel || 'N/A' },
+        { field: 'Status', value: current.status },
+        { field: 'Registration Date', value: new Date(current.registration_date).toLocaleDateString() },
+      ])
+      
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/octet-stream' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${current.full_name}-record.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Excel export failed', err)
     }
@@ -152,162 +150,100 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
         </div>
 
         <div className="mt-6 space-y-4">
+          {/* QR Code */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-primary">QR Code</label>
+            <p className="text-sm text-foreground font-mono">{current.qr_code}</p>
+          </div>
+
           {/* Name */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-primary">Full Name</label>
-            {localMode === 'view' ? (
-              <p className="text-sm text-foreground">{current.name}</p>
-            ) : (
-              <Input
-                value={current.name}
-                onChange={(e) =>
-                  setEditData({ ...current, name: e.target.value })
-                }
-              />
-            )}
+            <p className="text-sm text-foreground">{current.full_name}</p>
           </div>
 
           {/* Type */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-primary">Type</label>
-            {localMode === 'view' ? (
-              <p className="text-sm text-foreground">{current.type}</p>
-            ) : (
-              <Select
-                value={current.type}
-                onValueChange={(value) =>
-                  setEditData({
-                    ...current,
-                    type: value as 'Farmer' | 'Fisherfolk',
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Farmer">Farmer</SelectItem>
-                  <SelectItem value="Fisherfolk">Fisherfolk</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
+            <p className="text-sm text-foreground">
+              {current.farmer_type === 'farmer' ? 'Farmer' : 'Fisherfolk'}
+            </p>
           </div>
 
           {/* Barangay */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-primary">Barangay</label>
-            {localMode === 'view' ? (
-              <p className="text-sm text-foreground">{current.barangay}</p>
-            ) : (
-              <Input
-                value={current.barangay}
-                onChange={(e) =>
-                  setEditData({ ...current, barangay: e.target.value })
-                }
-              />
-            )}
+            <p className="text-sm text-foreground">{current.barangay}</p>
           </div>
 
-          {/* Contact Number */}
+          {/* Municipality */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-primary">
-              Contact Number
-            </label>
-            {localMode === 'view' ? (
-              <p className="text-sm text-foreground">{current.contactNumber}</p>
-            ) : (
-              <Input
-                value={current.contactNumber}
-                onChange={(e) =>
-                  setEditData({
-                    ...current,
-                    contactNumber: e.target.value,
-                  })
-                }
-              />
-            )}
+            <label className="text-sm font-semibold text-primary">Municipality</label>
+            <p className="text-sm text-foreground">{current.municipality}</p>
           </div>
 
-          {/* Crop/Fish Type */}
+          {/* Address */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-primary">
-              {current.type === 'Farmer' ? 'Crop' : 'Fish'} Type
-            </label>
-            {localMode === 'view' ? (
-              <p className="text-sm text-foreground">{current.cropType}</p>
-            ) : (
-              <Input
-                value={current.cropType}
-                onChange={(e) =>
-                  setEditData({ ...current, cropType: e.target.value })
-                }
-              />
-            )}
+            <label className="text-sm font-semibold text-primary">Address</label>
+            <p className="text-sm text-foreground">{current.address}</p>
           </div>
 
-          {/* Years of Experience */}
+          {/* Contact */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-primary">
-              Years of Experience
-            </label>
-            {localMode === 'view' ? (
-              <p className="text-sm text-foreground">{current.yearsExperience}</p>
-            ) : (
-              <Input
-                type="number"
-                value={current.yearsExperience}
-                onChange={(e) =>
-                  setEditData({
-                    ...current,
-                    yearsExperience: parseInt(e.target.value),
-                  })
-                }
-              />
-            )}
+            <label className="text-sm font-semibold text-primary">Phone Number</label>
+            <p className="text-sm text-foreground">{current.phone || 'N/A'}</p>
           </div>
 
-          {/* Status (View Only) */}
-          {typeof current.status !== 'undefined' && (
+          {/* Email */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-primary">Email</label>
+            <p className="text-sm text-foreground">{current.email || 'N/A'}</p>
+          </div>
+
+          {/* Crop/Vessel */}
+          {current.farmer_type === 'farmer' ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-primary">Crop Type</label>
+                <p className="text-sm text-foreground">{current.crop_type || 'N/A'}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-primary">Farm Size</label>
+                <p className="text-sm text-foreground">
+                  {current.farm_size ? `${current.farm_size} hectares` : 'N/A'}
+                </p>
+              </div>
+            </>
+          ) : (
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-primary">Status</label>
-              <span
-                className={`inline-block w-fit rounded-full px-3 py-1 text-xs font-semibold ${
-                  current.status === 'Active'
-                    ? 'bg-green-500/20 text-green-700 dark:text-green-400'
-                    : 'bg-slate-500/20 text-slate-700 dark:text-slate-400'
-                }`}
-              >
-                {current.status}
-              </span>
+              <label className="text-sm font-semibold text-primary">Fishing Vessel</label>
+              <p className="text-sm text-foreground">{current.fishing_vessel || 'N/A'}</p>
             </div>
           )}
 
-          {/* Created At (View Only) */}
+          {/* Status */}
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-primary">
-              Registered On
-            </label>
-            <p className="text-sm text-foreground">{current.createdAt}</p>
+            <label className="text-sm font-semibold text-primary">Status</label>
+            <p className="text-sm text-foreground capitalize">{current.status}</p>
+          </div>
+
+          {/* Registration Date */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-primary">Registration Date</label>
+            <p className="text-sm text-foreground">
+              {new Date(current.registration_date).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="mt-6 flex gap-3">
-          <Button
-            variant="outline"
-            className="flex-1 border-primary/30 text-primary hover:bg-primary/10"
-            onClick={localMode === 'edit' ? handleCancel : onClose}
-          >
-            {localMode === 'view' ? 'Close' : 'Cancel'}
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose}>
+            Close
           </Button>
-          {localMode === 'edit' && (
-            <Button
-              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={handleSave}
-            >
-              Save Changes
-            </Button>
-          )}
         </div>
       </Card>
     </>

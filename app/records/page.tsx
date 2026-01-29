@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/app-layout'
 import { Card } from '@/components/ui/card'
@@ -14,44 +14,49 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { RecordModal } from '@/components/record-modal'
-import { mockRecords } from '@/lib/mock-data'
+import { getAllFarmers, deleteFarmer, type Farmer } from '@/lib/farmers-service'
 import { Eye, Trash2, Plus } from 'lucide-react'
-
-interface Record {
-  id: number
-  name: string
-  type: 'Farmer' | 'Fisherfolk'
-  barangay: string
-  contactNumber: string
-  cropType: string
-  yearsExperience: number
-  createdAt: string
-  status: 'Active' | 'Inactive'
-}
 
 export default function RecordsPage() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterType, setFilterType] = useState<'All' | 'Farmer' | 'Fisherfolk'>('All')
-  const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Inactive'>('All')
-  const [selectedRecord, setSelectedRecord] = useState<Record | null>(null)
+  const [filterType, setFilterType] = useState<'All' | 'farmer' | 'fisherfolk'>('All')
+  const [filterStatus, setFilterStatus] = useState<'All' | 'active' | 'inactive'>('All')
+  const [selectedRecord, setSelectedRecord] = useState<Farmer | null>(null)
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('view')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [farmers, setFarmers] = useState<Farmer[]>([])
+  const [loading, setLoading] = useState(true)
   const itemsPerPage = 10
+
+  // Fetch farmers from Supabase
+  useEffect(() => {
+    async function loadFarmers() {
+      try {
+        const data = await getAllFarmers()
+        setFarmers(data)
+      } catch (error) {
+        console.error('Error loading farmers:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadFarmers()
+  }, [])
 
   // Filter and search records
   const filteredRecords = useMemo(() => {
-    return mockRecords.filter((record: Record) => {
-      const matchesType = filterType === 'All' || record.type === filterType
-      const matchesStatus = filterStatus === 'All' || record.status === filterStatus
-      const matchesSearch = record.name
+    return farmers.filter((farmer) => {
+      const matchesType = filterType === 'All' || farmer.farmer_type === filterType
+      const matchesStatus = filterStatus === 'All' || farmer.status === filterStatus
+      const matchesSearch = farmer.full_name
         .toLowerCase()
         .includes(searchQuery.toLowerCase()) ||
-        record.barangay.toLowerCase().includes(searchQuery.toLowerCase())
+        farmer.barangay.toLowerCase().includes(searchQuery.toLowerCase())
       return matchesType && matchesStatus && matchesSearch
     })
-  }, [searchQuery, filterType, filterStatus])
+  }, [searchQuery, filterType, filterStatus, farmers])
 
   // Pagination
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage)
@@ -60,17 +65,32 @@ export default function RecordsPage() {
     currentPage * itemsPerPage
   )
 
-  const handleViewRecord = (record: Record) => {
-    setSelectedRecord(record)
+  const handleViewRecord = (farmer: Farmer) => {
+    setSelectedRecord(farmer)
     setModalMode('view')
     setIsModalOpen(true)
   }
 
-  // Removed Edit action; modal remains view-only in UI
+  const handleDeleteRecord = async (id: string) => {
+    if (confirm('Are you sure you want to delete this record?')) {
+      try {
+        await deleteFarmer(id)
+        setFarmers(farmers.filter(f => f.id !== id))
+      } catch (error) {
+        console.error('Error deleting farmer:', error)
+        alert('Failed to delete record')
+      }
+    }
+  }
 
-  const handleDeleteRecord = (id: number) => {
-    // Mock delete - in real app, would call API
-    console.log('Delete record:', id)
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-screen">
+          <p className="text-muted-foreground">Loading records...</p>
+        </div>
+      </AppLayout>
+    )
   }
 
   return (
@@ -126,8 +146,8 @@ export default function RecordsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Types</SelectItem>
-                  <SelectItem value="Farmer">Farmers</SelectItem>
-                  <SelectItem value="Fisherfolk">Fisherfolks</SelectItem>
+                  <SelectItem value="farmer">Farmers</SelectItem>
+                  <SelectItem value="fisherfolk">Fisherfolks</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -147,8 +167,8 @@ export default function RecordsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -200,33 +220,69 @@ export default function RecordsPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedRecords.map((record: Record) => (
+                  paginatedRecords.map((farmer) => (
                     <tr
-                      key={record.id}
+                      key={farmer.id}
                       className="border-b border-border hover:bg-muted/50 transition-colors"
                     >
                       <td className="px-6 py-4 text-sm font-medium text-foreground">
-                        {record.name}
+                        {farmer.full_name}
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
                         <span
                           className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                            record.type === 'Farmer'
+                            farmer.farmer_type === 'farmer'
                               ? 'bg-green-500/20 text-green-700 dark:text-green-400'
                               : 'bg-blue-500/20 text-blue-700 dark:text-blue-400'
                           }`}
                         >
-                          {record.type}
+                          {farmer.farmer_type === 'farmer' ? 'Farmer' : 'Fisherfolk'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
-                        {record.barangay}
+                        {farmer.barangay}
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
-                        {record.contactNumber}
+                        {farmer.phone || 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
-                        {record.cropType}
+                        {farmer.crop_type || farmer.fishing_vessel || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {farmer.farm_size ? `${farmer.farm_size} ha` : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        <span
+                          className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                            farmer.status === 'active'
+                              ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                              : 'bg-slate-500/20 text-slate-700 dark:text-slate-400'
+                          }`}
+                        >
+                          {farmer.status === 'active' ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-2"
+                            onClick={() => handleViewRecord(farmer)}
+                          >
+                            <Eye className="h-4 w-4" />
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="gap-2"
+                            onClick={() => handleDeleteRecord(farmer.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </Button>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
                         {record.yearsExperience} years

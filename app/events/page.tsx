@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/dialog'
 import * as React from 'react'
 import { mockRecords } from '@/lib/mock-data'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 type EventItem = {
   id: number
@@ -366,19 +366,39 @@ export default function EventsPage() {
       Time: event.time,
       Venue: event.venue,
     }))
-    const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(rows)
-    XLSX.utils.book_append_sheet(wb, ws, 'Attendees')
-    const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-    const blob = new Blob([out], { type: 'application/octet-stream' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${event.title} - Attendees.xlsx`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Attendees')
+    
+    // Add headers
+    worksheet.columns = [
+      { header: 'Name', key: 'Name' },
+      { header: 'Type', key: 'Type' },
+      { header: 'Barangay', key: 'Barangay' },
+      { header: 'Contact', key: 'Contact' },
+      { header: 'Crop', key: 'Crop' },
+      { header: 'Timestamp', key: 'Timestamp' },
+      { header: 'Event', key: 'Event' },
+      { header: 'Date', key: 'Date' },
+      { header: 'Time', key: 'Time' },
+      { header: 'Venue', key: 'Venue' },
+    ]
+    
+    // Add rows
+    rows.forEach(row => worksheet.addRow(row))
+    
+    // Generate buffer and download
+    workbook.xlsx.writeBuffer().then((buffer) => {
+      const blob = new Blob([buffer], { type: 'application/octet-stream' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${event.title} - Attendees.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    })
   }
 
   return (

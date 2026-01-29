@@ -88,7 +88,7 @@ export function Sidebar() {
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 space-y-2 px-4 py-6">
+        <nav className="flex-1 space-y-1.5 px-3 py-6">
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname.startsWith(item.href)
@@ -97,7 +97,11 @@ export function Sidebar() {
               <Link key={item.href} href={item.href}>
                 <Button
                   variant={isActive ? 'default' : 'ghost'}
-                  className="w-full justify-start gap-2"
+                  className={`w-full justify-start gap-3 px-4 py-6 text-base font-medium transition-all duration-200 ${
+                    isActive 
+                      ? 'bg-green-700 text-white hover:bg-green-800 shadow-sm' 
+                      : 'text-gray-700 hover:bg-green-200 hover:text-green-900 hover:shadow-md'
+                  }`}
                   onClick={() => {
                     // Close sidebar on mobile after navigation
                     if (window.innerWidth < 768) {
