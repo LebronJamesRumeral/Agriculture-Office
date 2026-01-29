@@ -24,6 +24,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check if user is logged in
     const checkUser = async () => {
       try {
+        if (!supabase) {
+          setLoading(false);
+          return;
+        }
         const {
           data: { session },
         } = await supabase.auth.getSession();
@@ -38,6 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkUser();
 
     // Listen for auth changes
+    if (!supabase) return;
+    
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -52,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string) => {
     setError(null);
     try {
+      if (!supabase) throw new Error("Supabase is not configured");
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -66,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setError(null);
     try {
+      if (!supabase) throw new Error("Supabase is not configured");
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -80,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setError(null);
     try {
+      if (!supabase) throw new Error("Supabase is not configured");
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (err) {

@@ -45,6 +45,10 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchDashboardData() {
       try {
+        if (!supabase) {
+          setLoading(false);
+          return;
+        }
         // Fetch all farmers
         const { data: farmers, error } = await supabase
           .from('farmers')
