@@ -10,7 +10,43 @@ export const mockAnalytics = {
   percentageInactive: 19.9,
 }
 
-export const mockRecords = [
+const baseRecordFields = {
+  lastName: '',
+  firstName: '',
+  middleName: '',
+  extName: '',
+  birthdate: '',
+  age: '',
+  gender: '',
+  civilStatus: '',
+  designation: '',
+  unaKard: '',
+  imc: '',
+  uMobileAccount: '',
+  lguCodeNo: '',
+  ffrsSystemGeneratedNo: '',
+  ffrsDateEncoded: '',
+  fishrNo: '',
+  contactNo: '',
+  association: '',
+  familyMembers: '',
+  organic: '',
+  fourPsMember: '',
+  ipsMember: '',
+  severelyStuntedChildren: '',
+  motherMaidenName: '',
+  householdHead: '',
+  householdHeadSpecify: '',
+  typeOfId: '',
+  idNo: '',
+  farmerFisherfolkBoth: '',
+  farmType: '',
+  cropAreaOrHeads: '',
+  cropName: '',
+  remarks: '',
+}
+
+const rawRecords = [
   {
     id: 1,
     name: 'Juan Dela Cruz',
@@ -98,6 +134,45 @@ export const mockRecords = [
   { id: 34, name: 'Federico Lao', type: 'Farmer', barangay: 'Barangay 11', contactNumber: '09171234600', cropType: 'Rice', yearsExperience: 8, createdAt: '2026-02-03', status: 'Active' },
   { id: 35, name: 'Gloria Sy', type: 'Fisherfolk', barangay: 'Barangay 12', contactNumber: '09171234601', cropType: 'Bangus', yearsExperience: 10, createdAt: '2026-02-03', status: 'Inactive' },
 ]
+
+export const mockRecords = rawRecords.map((record, index) => {
+  const nameParts = record.name.split(' ')
+  const firstName = nameParts[0] ?? ''
+  const lastName = nameParts[nameParts.length - 1] ?? ''
+  const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : ''
+  const age = 18 + (record.id % 30)
+  const birthYear = 2026 - age
+
+  return {
+    ...baseRecordFields,
+    ...record,
+    firstName,
+    lastName,
+    middleName,
+    birthdate: `${birthYear}-01-15`,
+    age: String(age),
+    gender: index % 2 === 0 ? 'Male' : 'Female',
+    civilStatus: index % 3 === 0 ? 'Married' : 'Single',
+    designation: record.type === 'Farmer' ? 'Farmer' : 'Fisherfolk',
+    contactNo: record.contactNumber,
+    association: index % 4 === 0 ? 'Farmers Association' : 'Fisherfolk Union',
+    familyMembers: String(3 + (record.id % 5)),
+    organic: index % 2 === 0 ? 'Yes' : 'No',
+    fourPsMember: index % 4 === 0 ? 'Yes' : 'No',
+    ipsMember: index % 5 === 0 ? 'Yes' : 'No',
+    severelyStuntedChildren: String(record.id % 3 === 0 ? 1 : 0),
+    motherMaidenName: index % 2 === 0 ? 'Santos' : 'Reyes',
+    householdHead: index % 2 === 0 ? 'Yes' : 'No',
+    householdHeadSpecify: index % 2 === 0 ? '' : 'Spouse',
+    typeOfId: 'National ID',
+    idNo: `ID-${String(record.id).padStart(4, '0')}`,
+    farmerFisherfolkBoth: record.type,
+    farmType: record.type === 'Farmer' ? 'Crop' : 'Fishery',
+    cropAreaOrHeads: record.type === 'Farmer' ? '2.5 ha' : '120 heads',
+    cropName: record.cropType,
+    remarks: record.status === 'Active' ? 'Active member' : 'Inactive member',
+  }
+})
 
 export const mockNotifications = [
   {

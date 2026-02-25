@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { LayoutDashboard, FileText, Settings, Menu, X, CalendarCheck } from 'lucide-react'
+import { LayoutDashboard, FileText, Settings, Menu, X, CalendarCheck, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -46,7 +46,7 @@ const navItems = [
   },
 ]
 
-export function Sidebar() {
+export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const [open, setOpen] = useState(true)
   const pathname = usePathname()
   const router = useRouter()
@@ -65,13 +65,19 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 z-30 flex h-screen w-64 flex-col bg-amber-50 text-black transition-transform duration-300 md:translate-x-0 ${
+        className={`fixed left-0 top-0 z-30 flex h-screen ${
+          collapsed ? 'w-20' : 'w-64'
+        } flex-col bg-background text-foreground transition-all duration-300 ease-in-out md:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Logo Area */}
-        <div className="border-b border-border h-16 px-6 flex items-center">
-          <div className="flex items-center gap-2">
+        <div
+          className={`border-b border-border h-16 flex items-center transition-[padding] duration-300 ease-in-out ${
+            collapsed ? 'px-4 justify-center' : 'px-6'
+          }`}
+        >
+          <div className={`flex items-center ${collapsed ? '' : 'gap-2'}`}>
             <Image
               src="/agrilogo.png"
               alt="Olongapo City Agriculture Office logo"
@@ -80,15 +86,21 @@ export function Sidebar() {
               className="h-8 w-8 object-contain"
               priority
             />
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-black">Olongapo</h1>
-              <p className="text-xs text-black/70">Agriculture Office</p>
-            </div>
+            {!collapsed && (
+              <div className="flex-1">
+                <h1 className="text-lg font-bold text-foreground">Olongapo</h1>
+                <p className="text-xs text-muted-foreground">Agriculture Office</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Navigation Items */}
-        <nav className="flex-1 space-y-1.5 px-3 py-6">
+        <nav
+          className={`flex-1 space-y-2 py-6 transition-[padding] duration-300 ease-in-out ${
+            collapsed ? 'px-2' : 'px-4'
+          }`}
+        >
           {navItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname.startsWith(item.href)
@@ -97,11 +109,7 @@ export function Sidebar() {
               <Link key={item.href} href={item.href}>
                 <Button
                   variant={isActive ? 'default' : 'ghost'}
-                  className={`w-full justify-start gap-3 px-4 py-6 text-base font-medium transition-all duration-200 ${
-                    isActive 
-                      ? 'bg-green-700 text-white hover:bg-green-800 shadow-sm' 
-                      : 'text-gray-700 hover:bg-green-200 hover:text-green-900 hover:shadow-md'
-                  }`}
+                  className={`w-full ${collapsed ? 'justify-center' : 'justify-start gap-2'}`}
                   onClick={() => {
                     // Close sidebar on mobile after navigation
                     if (window.innerWidth < 768) {
@@ -110,7 +118,7 @@ export function Sidebar() {
                   }}
                 >
                   <Icon className="h-5 w-5" />
-                  <span>{item.label}</span>
+                  {!collapsed && <span>{item.label}</span>}
                 </Button>
               </Link>
             )
@@ -118,10 +126,17 @@ export function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-amber-200 px-4 py-4 space-y-3">
+        <div
+          className={`border-t border-border py-4 space-y-3 transition-[padding] duration-300 ease-in-out ${
+            collapsed ? 'px-2' : 'px-4'
+          }`}
+        >
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button className="w-full" variant="destructive">Sign Out</Button>
+              <Button className={`w-full ${collapsed ? 'justify-center' : ''}`} variant="destructive">
+                <LogOut className="h-4 w-4" />
+                {!collapsed && <span className="ml-2">Sign Out</span>}
+              </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
@@ -137,7 +152,9 @@ export function Sidebar() {
             </AlertDialogContent>
           </AlertDialog>
 
-          <p className="text-xs text-black/60 text-center">© 2026 Olongapo City</p>
+          {!collapsed && (
+            <p className="text-xs text-muted-foreground text-center">© 2026 Olongapo City</p>
+          )}
         </div>
       </aside>
 
