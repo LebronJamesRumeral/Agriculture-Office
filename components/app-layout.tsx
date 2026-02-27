@@ -13,7 +13,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <Sidebar collapsed={isSidebarCollapsed} />
       <div
-        className={`relative transition-[margin] duration-300 ease-in-out ${
+        className={`relative min-h-screen transition-[margin] duration-300 ease-in-out ${
           isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'
         }`}
       >
@@ -26,10 +26,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <img
             src="/olongapo.png"
             alt="Background watermark"
-            className="max-w-[75vw] opacity-10 select-none"
+            className="max-w-[70vw] opacity-5 select-none"
           />
         </div>
-        <main className="relative z-10 min-h-[calc(100vh-4rem)]">{children}</main>
+        {/* Constrain content width for better readability on wide screens */}
+        <main className="relative z-10 min-h-[calc(100vh-4rem)] px-4 pb-10 pt-6 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+        </main>
       </div>
     </ThemeProvider>
   )

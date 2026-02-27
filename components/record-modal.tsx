@@ -12,62 +12,22 @@ import {
 } from '@/components/ui/select'
 import { X, Edit2, QrCode, FileSpreadsheet } from 'lucide-react'
 import { useEffect, useState } from 'react'
-
-interface Record {
-  id: number
-  name: string
-  type: 'Farmer' | 'Fisherfolk' | 'Both'
-  barangay: string
-  contactNumber: string
-  cropType: string
-  yearsExperience: number
-  createdAt: string
-  status?: 'Active' | 'Inactive'
-  lastName?: string
-  firstName?: string
-  middleName?: string
-  extName?: string
-  birthdate?: string
-  age?: string
-  gender?: string
-  civilStatus?: string
-  designation?: string
-  unaKard?: string
-  imc?: string
-  uMobileAccount?: string
-  lguCodeNo?: string
-  ffrsSystemGeneratedNo?: string
-  ffrsDateEncoded?: string
-  fishrNo?: string
-  contactNo?: string
-  association?: string
-  familyMembers?: string
-  organic?: string
-  fourPsMember?: string
-  ipsMember?: string
-  severelyStuntedChildren?: string
-  motherMaidenName?: string
-  householdHead?: string
-  householdHeadSpecify?: string
-  typeOfId?: string
-  idNo?: string
-  farmerFisherfolkBoth?: string
-  farmType?: string
-  cropAreaOrHeads?: string
-  cropName?: string
-  remarks?: string
-}
+import { createPortal } from 'react-dom'
+import type { RecordItem } from '@/lib/records'
 
 interface RecordModalProps {
-  record: Record | null
+  record: RecordItem | null
   isOpen: boolean
   onClose: () => void
   mode: 'view' | 'edit'
 }
 
 export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps) {
-  const [editData, setEditData] = useState<Record | null>(null)
+  const [editData, setEditData] = useState<RecordItem | null>(null)
   const [localMode, setLocalMode] = useState<'view' | 'edit'>(mode)
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+  const [showQrModal, setShowQrModal] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   // Keep internal state in sync when a record is selected
   useEffect(() => {
@@ -75,7 +35,11 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
     setLocalMode(mode)
   }, [record, mode])
 
-  if (!isOpen || !record) return null
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted || !isOpen || !record) return null
 
   const current = editData ?? record
   const nameParts = current.name ? current.name.split(' ') : []
@@ -107,12 +71,8 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
       const QR = await import('qrcode')
       const data = JSON.stringify(current)
       const url = await QR.toDataURL(data, { margin: 2, width: 512 })
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `record-${current.id}-qr.png`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
+      setQrCodeUrl(url)
+      setShowQrModal(true)
     } catch (err) {
       console.error('QR generation failed', err)
     }
@@ -176,16 +136,17 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
     }
   }
 
-  return (
+  return createPortal(
     <>
       {/* Overlay */}
       <div
-        className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px]"
+        className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <Card className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl max-h-[70vh] overflow-y-auto -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-2xl">
+      {/* Constrain modal width on small screens for consistent spacing */}
+      <Card className="fixed left-1/2 top-1/2 z-[10000] w-[min(92vw,42rem)] max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-2xl">
         <div className="-m-6 mb-6 rounded-t-xl border-b border-emerald-900/20 bg-gradient-to-br from-emerald-700 via-emerald-600 to-lime-600 px-6 py-5 text-white">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-1">
@@ -247,7 +208,7 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
           </div>
         </div>
 
-        <div className="mt-6 space-y-5">
+        <div className="mt-6 space-y-6">
           {[
             {
               title: 'Personal Information',
@@ -324,7 +285,7 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
               </p>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
                 {section.fields.map((field) => {
-                  const rawValue = (current as Record)[field.key as keyof Record]
+                  const rawValue = (current as RecordItem)[field.key as keyof RecordItem]
                   const displayValue =
                     typeof rawValue === 'string' && rawValue.trim().length > 0
                       ? rawValue
@@ -355,7 +316,7 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
                           onChange={(e) =>
                             setEditData({
                               ...current,
-                              [field.key as keyof Record]: e.target.value,
+                              [field.key as keyof RecordItem]: e.target.value,
                             })
                           }
                           className="min-h-[90px] w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -375,7 +336,7 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
                           onValueChange={(value) =>
                             setEditData({
                               ...current,
-                              status: value as Record['status'],
+                              status: value as RecordItem['status'],
                             })
                           }
                         >
@@ -471,6 +432,50 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
           )}
         </div>
       </Card>
-    </>
+
+      {/* QR Code Modal */}
+      {showQrModal && qrCodeUrl && (
+        <>
+          {/* QR Modal Overlay */}
+          <div
+            className="fixed inset-0 z-[10001] bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowQrModal(false)}
+          />
+          
+          {/* QR Modal Content */}
+          <Card className="fixed left-1/2 top-1/2 z-[10002] w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-semibold text-foreground">QR Code</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowQrModal(false)}
+                className="rounded-full hover:bg-muted"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            
+            <div className="flex flex-col items-center gap-4">
+              <div className="rounded-lg border border-border bg-white p-4">
+                <img 
+                  src={qrCodeUrl} 
+                  alt="QR Code" 
+                  className="w-full h-auto max-w-[400px]"
+                />
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Scan this QR code to view record details
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Record ID: {current.id} - {displayName}
+              </p>
+            </div>
+          </Card>
+        </>
+      )}
+    </>,
+    document.body
   )
 }

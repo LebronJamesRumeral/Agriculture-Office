@@ -186,8 +186,13 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
           className="opacity-10 w-[50%] max-w-[480px] select-none"
         />
       </div>
-      <form onSubmit={handleSubmit} className="relative z-10 space-y-6">
-        <div className="grid gap-6 md:grid-cols-2">
+      <form onSubmit={handleSubmit} className="relative z-10 space-y-8">
+        {/* Section grouping improves scanability in long forms */}
+        <div className="space-y-6">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Personal Information
+          </h3>
+          <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">
               Last Name <span className="text-destructive">*</span>
@@ -212,144 +217,150 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
             />
             {errors.firstName && <p className="text-xs text-destructive">{errors.firstName}</p>}
           </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Middle Name <span className="text-destructive">*</span>
+              </label>
+              <Input
+                placeholder="Enter middle name"
+                value={formData.middleName}
+                onChange={(e) => handleChange('middleName', e.target.value)}
+                className={errors.middleName ? 'border-destructive' : ''}
+              />
+              {errors.middleName && <p className="text-xs text-destructive">{errors.middleName}</p>}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Extension Name</label>
+              <Input
+                placeholder="Enter extension name"
+                value={formData.extName}
+                onChange={(e) => handleChange('extName', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Birthdate <span className="text-destructive">*</span>
+              </label>
+              <Input
+                type="date"
+                value={formData.birthdate}
+                onChange={(e) => handleChange('birthdate', e.target.value)}
+                className={errors.birthdate ? 'border-destructive' : ''}
+              />
+              {errors.birthdate && <p className="text-xs text-destructive">{errors.birthdate}</p>}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Age <span className="text-destructive">*</span>
+              </label>
+              <Input
+                type="number"
+                min={18}
+                step={1}
+                placeholder="Enter age"
+                value={formData.age}
+                readOnly
+                onChange={(e) => handleChange('age', e.target.value)}
+                className={errors.age ? 'border-destructive' : ''}
+              />
+              {errors.age && <p className="text-xs text-destructive">{errors.age}</p>}
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Gender <span className="text-destructive">*</span>
+              </label>
+              <Select value={formData.gender} onValueChange={(value) => handleChange('gender', value)}>
+                <SelectTrigger className={errors.gender ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Male">Male</SelectItem>
+                  <SelectItem value="Female">Female</SelectItem>
+                  <SelectItem value="Others">Others</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.gender && <p className="text-xs text-destructive">{errors.gender}</p>}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Civil Status <span className="text-destructive">*</span>
+              </label>
+              <Select value={formData.civilStatus} onValueChange={(v) => handleChange('civilStatus', v)}>
+                <SelectTrigger className={errors.civilStatus ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select civil status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Single">Single</SelectItem>
+                  <SelectItem value="Married">Married</SelectItem>
+                  <SelectItem value="Widowed">Widowed</SelectItem>
+                  <SelectItem value="Separated">Separated</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.civilStatus && <p className="text-xs text-destructive">{errors.civilStatus}</p>}
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Barangay <span className="text-destructive">*</span>
+              </label>
+              <Select value={formData.barangay} onValueChange={(value) => handleChange('barangay', value)}>
+                <SelectTrigger className={errors.barangay ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select barangay" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Asinan">Asinan</SelectItem>
+                  <SelectItem value="Banicain">Banicain</SelectItem>
+                  <SelectItem value="Barretto">Barretto</SelectItem>
+                  <SelectItem value="East Bajac-Bajac">East Bajac-Bajac</SelectItem>
+                  <SelectItem value="East Tapinac">East Tapinac</SelectItem>
+                  <SelectItem value="Gordon Heights">Gordon Heights</SelectItem>
+                  <SelectItem value="Kalaklan">Kalaklan</SelectItem>
+                  <SelectItem value="Mabayuan">Mabayuan</SelectItem>
+                  <SelectItem value="New Cabalan">New Cabalan</SelectItem>
+                  <SelectItem value="New Ilalim">New Ilalim</SelectItem>
+                  <SelectItem value="New Kababae">New Kababae</SelectItem>
+                  <SelectItem value="New Kalalake">New Kalalake</SelectItem>
+                  <SelectItem value="Old Cabalan">Old Cabalan</SelectItem>
+                  <SelectItem value="Pag-asa">Pag-asa</SelectItem>
+                  <SelectItem value="Santa Rita">Santa Rita</SelectItem>
+                  <SelectItem value="West Bajac-Bajac">West Bajac-Bajac</SelectItem>
+                  <SelectItem value="West Tapinac">West Tapinac</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.barangay && <p className="text-xs text-destructive">{errors.barangay}</p>}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Designation <span className="text-destructive">*</span>
+              </label>
+              <Input
+                placeholder="Enter designation"
+                value={formData.designation}
+                onChange={(e) => handleChange('designation', e.target.value)}
+                className={errors.designation ? 'border-destructive' : ''}
+              />
+              {errors.designation && <p className="text-xs text-destructive">{errors.designation}</p>}
+            </div>
+          </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Middle Name <span className="text-destructive">*</span>
-            </label>
-            <Input
-              placeholder="Enter middle name"
-              value={formData.middleName}
-              onChange={(e) => handleChange('middleName', e.target.value)}
-              className={errors.middleName ? 'border-destructive' : ''}
-            />
-            {errors.middleName && <p className="text-xs text-destructive">{errors.middleName}</p>}
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Extension Name</label>
-            <Input
-              placeholder="Enter extension name"
-              value={formData.extName}
-              onChange={(e) => handleChange('extName', e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Birthdate <span className="text-destructive">*</span>
-            </label>
-            <Input
-              type="date"
-              value={formData.birthdate}
-              onChange={(e) => handleChange('birthdate', e.target.value)}
-              className={errors.birthdate ? 'border-destructive' : ''}
-            />
-            {errors.birthdate && <p className="text-xs text-destructive">{errors.birthdate}</p>}
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Age <span className="text-destructive">*</span>
-            </label>
-            <Input
-              type="number"
-              min={18}
-              step={1}
-              placeholder="Enter age"
-              value={formData.age}
-              readOnly
-              onChange={(e) => handleChange('age', e.target.value)}
-              className={errors.age ? 'border-destructive' : ''}
-            />
-            {errors.age && <p className="text-xs text-destructive">{errors.age}</p>}
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Gender <span className="text-destructive">*</span>
-            </label>
-            <Select value={formData.gender} onValueChange={(value) => handleChange('gender', value)}>
-              <SelectTrigger className={errors.gender ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Select gender" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Male">Male</SelectItem>
-                <SelectItem value="Female">Female</SelectItem>
-                <SelectItem value="Others">Others</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.gender && <p className="text-xs text-destructive">{errors.gender}</p>}
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Civil Status <span className="text-destructive">*</span>
-            </label>
-            <Select value={formData.civilStatus} onValueChange={(v) => handleChange('civilStatus', v)}>
-              <SelectTrigger className={errors.civilStatus ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Select civil status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Single">Single</SelectItem>
-                <SelectItem value="Married">Married</SelectItem>
-                <SelectItem value="Widowed">Widowed</SelectItem>
-                <SelectItem value="Separated">Separated</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.civilStatus && <p className="text-xs text-destructive">{errors.civilStatus}</p>}
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Barangay <span className="text-destructive">*</span>
-            </label>
-            <Select value={formData.barangay} onValueChange={(value) => handleChange('barangay', value)}>
-              <SelectTrigger className={errors.barangay ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Select barangay" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Asinan">Asinan</SelectItem>
-                <SelectItem value="Banicain">Banicain</SelectItem>
-                <SelectItem value="Barretto">Barretto</SelectItem>
-                <SelectItem value="East Bajac-Bajac">East Bajac-Bajac</SelectItem>
-                <SelectItem value="East Tapinac">East Tapinac</SelectItem>
-                <SelectItem value="Gordon Heights">Gordon Heights</SelectItem>
-                <SelectItem value="Kalaklan">Kalaklan</SelectItem>
-                <SelectItem value="Mabayuan">Mabayuan</SelectItem>
-                <SelectItem value="New Cabalan">New Cabalan</SelectItem>
-                <SelectItem value="New Ilalim">New Ilalim</SelectItem>
-                <SelectItem value="New Kababae">New Kababae</SelectItem>
-                <SelectItem value="New Kalalake">New Kalalake</SelectItem>
-                <SelectItem value="Old Cabalan">Old Cabalan</SelectItem>
-                <SelectItem value="Pag-asa">Pag-asa</SelectItem>
-                <SelectItem value="Santa Rita">Santa Rita</SelectItem>
-                <SelectItem value="West Bajac-Bajac">West Bajac-Bajac</SelectItem>
-                <SelectItem value="West Tapinac">West Tapinac</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.barangay && <p className="text-xs text-destructive">{errors.barangay}</p>}
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Designation <span className="text-destructive">*</span>
-            </label>
-            <Input
-              placeholder="Enter designation"
-              value={formData.designation}
-              onChange={(e) => handleChange('designation', e.target.value)}
-              className={errors.designation ? 'border-destructive' : ''}
-            />
-            {errors.designation && <p className="text-xs text-destructive">{errors.designation}</p>}
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* IDs and program cards grouped for readability */}
+        <div className="space-y-6">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            IDs and Program Cards
+          </h3>
+          <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">
               UNA Kard (USSC Network Acct Kard)
@@ -371,69 +382,74 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
             />
           </div>
         </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">U-Mobile Acct No.</label>
-            <Input
-              placeholder="Enter U-Mobile account number"
-              value={formData.uMobileAccount}
-              onChange={(e) => handleChange('uMobileAccount', e.target.value)}
-            />
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">U-Mobile Acct No.</label>
+              <Input
+                placeholder="Enter U-Mobile account number"
+                value={formData.uMobileAccount}
+                onChange={(e) => handleChange('uMobileAccount', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">LGU Code No.</label>
+              <Input
+                placeholder="Enter LGU code number"
+                value={formData.lguCodeNo}
+                onChange={(e) => handleChange('lguCodeNo', e.target.value)}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">LGU Code No.</label>
-            <Input
-              placeholder="Enter LGU code number"
-              value={formData.lguCodeNo}
-              onChange={(e) => handleChange('lguCodeNo', e.target.value)}
-            />
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">FFRS System Generated No.</label>
+              <Input
+                placeholder="Enter FFRS system generated number"
+                value={formData.ffrsSystemGeneratedNo}
+                onChange={(e) => handleChange('ffrsSystemGeneratedNo', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">FFRS Date Encoded</label>
+              <Input
+                type="date"
+                value={formData.ffrsDateEncoded}
+                onChange={(e) => handleChange('ffrsDateEncoded', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">FISHR No.</label>
+              <Input
+                placeholder="Enter FISHR number"
+                value={formData.fishrNo}
+                onChange={(e) => handleChange('fishrNo', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Contact No. <span className="text-destructive">*</span>
+              </label>
+              <Input
+                placeholder="09XX-XXXX-XXX"
+                value={formData.contactNo}
+                onChange={(e) => handleChange('contactNo', e.target.value)}
+                className={errors.contactNo ? 'border-destructive' : ''}
+              />
+              {errors.contactNo && <p className="text-xs text-destructive">{errors.contactNo}</p>}
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">FFRS System Generated No.</label>
-            <Input
-              placeholder="Enter FFRS system generated number"
-              value={formData.ffrsSystemGeneratedNo}
-              onChange={(e) => handleChange('ffrsSystemGeneratedNo', e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">FFRS Date Encoded</label>
-            <Input
-              type="date"
-              value={formData.ffrsDateEncoded}
-              onChange={(e) => handleChange('ffrsDateEncoded', e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">FISHR No.</label>
-            <Input
-              placeholder="Enter FISHR number"
-              value={formData.fishrNo}
-              onChange={(e) => handleChange('fishrNo', e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Contact No. <span className="text-destructive">*</span>
-            </label>
-            <Input
-              placeholder="09XX-XXXX-XXX"
-              value={formData.contactNo}
-              onChange={(e) => handleChange('contactNo', e.target.value)}
-              className={errors.contactNo ? 'border-destructive' : ''}
-            />
-            {errors.contactNo && <p className="text-xs text-destructive">{errors.contactNo}</p>}
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* Household and membership block */}
+        <div className="space-y-6">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Household and Membership
+          </h3>
+          <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Association</label>
             <Input
@@ -452,197 +468,204 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
             />
           </div>
         </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Organic (Y/N)</label>
+              <Select value={formData.organic} onValueChange={(v) => handleChange('organic', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">4P's Member (Y/N)</label>
+              <Select value={formData.fourPsMember} onValueChange={(v) => handleChange('fourPsMember', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">IP's Member (Y/N)</label>
+              <Select value={formData.ipsMember} onValueChange={(v) => handleChange('ipsMember', v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Organic (Y/N)</label>
-            <Select value={formData.organic} onValueChange={(v) => handleChange('organic', v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Yes">Yes</SelectItem>
-                <SelectItem value="No">No</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                No. of Severely Stunted Children (0-59 months)
+              </label>
+              <Input
+                type="number"
+                placeholder="Enter count"
+                value={formData.severelyStuntedChildren}
+                onChange={(e) => handleChange('severelyStuntedChildren', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Mother Maiden Name</label>
+              <Input
+                placeholder="Enter mother maiden name"
+                value={formData.motherMaidenName}
+                onChange={(e) => handleChange('motherMaidenName', e.target.value)}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">4P's Member (Y/N)</label>
-            <Select value={formData.fourPsMember} onValueChange={(v) => handleChange('fourPsMember', v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Yes">Yes</SelectItem>
-                <SelectItem value="No">No</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">IP's Member (Y/N)</label>
-            <Select value={formData.ipsMember} onValueChange={(v) => handleChange('ipsMember', v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Yes">Yes</SelectItem>
-                <SelectItem value="No">No</SelectItem>
-              </SelectContent>
-            </Select>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Household Head? <span className="text-destructive">*</span>
+              </label>
+              <Select value={formData.householdHead} onValueChange={(v) => handleChange('householdHead', v)}>
+                <SelectTrigger className={errors.householdHead ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Yes">Yes</SelectItem>
+                  <SelectItem value="No">No</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.householdHead && <p className="text-xs text-destructive">{errors.householdHead}</p>}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">If No, specify</label>
+              <Input
+                placeholder="Enter household head"
+                value={formData.householdHeadSpecify}
+                onChange={(e) => handleChange('householdHeadSpecify', e.target.value)}
+                className={errors.householdHeadSpecify ? 'border-destructive' : ''}
+                disabled={formData.householdHead !== 'No'}
+              />
+              {errors.householdHeadSpecify && (
+                <p className="text-xs text-destructive">{errors.householdHeadSpecify}</p>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              No. of Severely Stunted Children (0-59 months)
-            </label>
-            <Input
-              type="number"
-              placeholder="Enter count"
-              value={formData.severelyStuntedChildren}
-              onChange={(e) => handleChange('severelyStuntedChildren', e.target.value)}
-            />
+        {/* IDs and applicant type block */}
+        <div className="space-y-6">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Applicant Type and Identification
+          </h3>
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Type of ID <span className="text-destructive">*</span>
+              </label>
+              <Select
+                value={formData.typeOfId}
+                onValueChange={(v) => handleChange('typeOfId', v)}
+              >
+                <SelectTrigger className={errors.typeOfId ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Philippine Passport">Philippine Passport</SelectItem>
+                  <SelectItem value="Driver's License">Driver's License</SelectItem>
+                  <SelectItem value="SSS ID">SSS ID</SelectItem>
+                  <SelectItem value="GSIS ID">GSIS ID</SelectItem>
+                  <SelectItem value="UMID">UMID (Unified Multi-Purpose ID)</SelectItem>
+                  <SelectItem value="PhilHealth ID">PhilHealth ID</SelectItem>
+                  <SelectItem value="TIN ID">TIN ID</SelectItem>
+                  <SelectItem value="Postal ID">Postal ID</SelectItem>
+                  <SelectItem value="Voter's ID">Voter's ID</SelectItem>
+                  <SelectItem value="PRC ID">PRC ID</SelectItem>
+                  <SelectItem value="Senior Citizen ID">Senior Citizen ID</SelectItem>
+                  <SelectItem value="PWD ID">PWD ID</SelectItem>
+                  <SelectItem value="Barangay ID">Barangay ID</SelectItem>
+                  <SelectItem value="NBI Clearance">NBI Clearance</SelectItem>
+                  <SelectItem value="Police Clearance">Police Clearance</SelectItem>
+                  <SelectItem value="Pag-IBIG ID">Pag-IBIG ID</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.typeOfId && <p className="text-xs text-destructive">{errors.typeOfId}</p>}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                ID No. <span className="text-destructive">*</span>
+              </label>
+              <Input
+                placeholder="Enter ID number"
+                value={formData.idNo}
+                onChange={(e) => handleChange('idNo', e.target.value)}
+                className={errors.idNo ? 'border-destructive' : ''}
+              />
+              {errors.idNo && <p className="text-xs text-destructive">{errors.idNo}</p>}
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Mother Maiden Name</label>
-            <Input
-              placeholder="Enter mother maiden name"
-              value={formData.motherMaidenName}
-              onChange={(e) => handleChange('motherMaidenName', e.target.value)}
-            />
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Farmer / Fisherfolk / Both <span className="text-destructive">*</span>
+              </label>
+              <Select
+                value={formData.farmerFisherfolkBoth}
+                onValueChange={(v) => handleChange('farmerFisherfolkBoth', v)}
+              >
+                <SelectTrigger className={errors.farmerFisherfolkBoth ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Farmer">Farmer</SelectItem>
+                  <SelectItem value="Fisherfolk">Fisherfolk</SelectItem>
+                  <SelectItem value="Both">Both</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.farmerFisherfolkBoth && (
+                <p className="text-xs text-destructive">{errors.farmerFisherfolkBoth}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Farm Type</label>
+              <Input
+                placeholder="Enter farm type"
+                value={formData.farmType}
+                onChange={(e) => handleChange('farmType', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Crop Area / No. of Heads</label>
+              <Input
+                placeholder="Enter crop area or number of heads"
+                value={formData.cropAreaOrHeads}
+                onChange={(e) => handleChange('cropAreaOrHeads', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Crop Name</label>
+              <Input
+                placeholder="Enter crop name"
+                value={formData.cropName}
+                onChange={(e) => handleChange('cropName', e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Household Head? <span className="text-destructive">*</span>
-            </label>
-            <Select value={formData.householdHead} onValueChange={(v) => handleChange('householdHead', v)}>
-              <SelectTrigger className={errors.householdHead ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Yes">Yes</SelectItem>
-                <SelectItem value="No">No</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.householdHead && <p className="text-xs text-destructive">{errors.householdHead}</p>}
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">If No, specify</label>
-            <Input
-              placeholder="Enter household head"
-              value={formData.householdHeadSpecify}
-              onChange={(e) => handleChange('householdHeadSpecify', e.target.value)}
-              className={errors.householdHeadSpecify ? 'border-destructive' : ''}
-              disabled={formData.householdHead !== 'No'}
-            />
-            {errors.householdHeadSpecify && (
-              <p className="text-xs text-destructive">{errors.householdHeadSpecify}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Type of ID <span className="text-destructive">*</span>
-            </label>
-            <Select
-              value={formData.typeOfId}
-              onValueChange={(v) => handleChange('typeOfId', v)}
-            >
-              <SelectTrigger className={errors.typeOfId ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Philippine Passport">Philippine Passport</SelectItem>
-                <SelectItem value="Driver's License">Driver's License</SelectItem>
-                <SelectItem value="SSS ID">SSS ID</SelectItem>
-                <SelectItem value="GSIS ID">GSIS ID</SelectItem>
-                <SelectItem value="UMID">UMID (Unified Multi-Purpose ID)</SelectItem>
-                <SelectItem value="PhilHealth ID">PhilHealth ID</SelectItem>
-                <SelectItem value="TIN ID">TIN ID</SelectItem>
-                <SelectItem value="Postal ID">Postal ID</SelectItem>
-                <SelectItem value="Voter's ID">Voter's ID</SelectItem>
-                <SelectItem value="PRC ID">PRC ID</SelectItem>
-                <SelectItem value="Senior Citizen ID">Senior Citizen ID</SelectItem>
-                <SelectItem value="PWD ID">PWD ID</SelectItem>
-                <SelectItem value="Barangay ID">Barangay ID</SelectItem>
-                <SelectItem value="NBI Clearance">NBI Clearance</SelectItem>
-                <SelectItem value="Police Clearance">Police Clearance</SelectItem>
-                <SelectItem value="Pag-IBIG ID">Pag-IBIG ID</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.typeOfId && <p className="text-xs text-destructive">{errors.typeOfId}</p>}
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              ID No. <span className="text-destructive">*</span>
-            </label>
-            <Input
-              placeholder="Enter ID number"
-              value={formData.idNo}
-              onChange={(e) => handleChange('idNo', e.target.value)}
-              className={errors.idNo ? 'border-destructive' : ''}
-            />
-            {errors.idNo && <p className="text-xs text-destructive">{errors.idNo}</p>}
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Farmer / Fisherfolk / Both <span className="text-destructive">*</span>
-            </label>
-            <Select
-              value={formData.farmerFisherfolkBoth}
-              onValueChange={(v) => handleChange('farmerFisherfolkBoth', v)}
-            >
-              <SelectTrigger className={errors.farmerFisherfolkBoth ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Farmer">Farmer</SelectItem>
-                <SelectItem value="Fisherfolk">Fisherfolk</SelectItem>
-                <SelectItem value="Both">Both</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.farmerFisherfolkBoth && (
-              <p className="text-xs text-destructive">{errors.farmerFisherfolkBoth}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Farm Type</label>
-            <Input
-              placeholder="Enter farm type"
-              value={formData.farmType}
-              onChange={(e) => handleChange('farmType', e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Crop Area / No. of Heads</label>
-            <Input
-              placeholder="Enter crop area or number of heads"
-              value={formData.cropAreaOrHeads}
-              onChange={(e) => handleChange('cropAreaOrHeads', e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Crop Name</label>
-            <Input
-              placeholder="Enter crop name"
-              value={formData.cropName}
-              onChange={(e) => handleChange('cropName', e.target.value)}
-            />
-          </div>
-        </div>
-
+        {/* Remarks separated to reduce visual density */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">Remarks</label>
           <textarea

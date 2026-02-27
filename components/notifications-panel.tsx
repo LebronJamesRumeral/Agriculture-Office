@@ -40,12 +40,16 @@ export function NotificationsPanel({ notifications }: NotificationsPanelProps) {
         <p className="text-sm text-muted-foreground">No notifications</p>
       ) : (
         notifications.map((notification) => (
-          <div key={notification.id} className="flex gap-3 rounded-lg p-3 hover:bg-muted">
+          <div
+            key={notification.id}
+            className="flex gap-3 rounded-lg border border-border/60 bg-card/70 p-3 hover:bg-muted/60"
+          >
             <div className={`rounded-lg p-2 ${getBgColor(notification.type)}`}>
               {getIcon(notification.type)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground">
+              {/* Clamp long messages to keep rows aligned */}
+              <p className="text-sm font-medium text-foreground line-clamp-2">
                 {notification.message}
               </p>
               <p className="text-xs text-muted-foreground mt-1">

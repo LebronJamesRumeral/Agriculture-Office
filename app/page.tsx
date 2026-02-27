@@ -10,17 +10,61 @@ import { CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Mock login - in real app, validate credentials
-    if (username && password) {
+    setErrorMessage(null)
+    setIsSubmitting(true)
+
+    try {
+      // Query user_profiles table
+      const { data: user, error } = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name, role, password_hash')
+        .eq('email', email)
+        .single()
+
+      if (error || !user) {
+        setErrorMessage('Invalid email or password')
+        setIsSubmitting(false)
+        return
+      }
+
+      // Verify password using pgcrypto crypt function
+      const { data: result, error: verifyError } = await supabase.rpc('verify_password', {
+        password_input: password,
+        password_hash: user.password_hash
+      })
+
+      if (verifyError || !result) {
+        setErrorMessage('Invalid email or password')
+        setIsSubmitting(false)
+        return
+      }
+
+      // Store user info in localStorage (only in browser)
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('user', JSON.stringify({
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          full_name: user.full_name
+        }))
+      }
+
+      setIsSubmitting(false)
       router.push('/dashboard')
+    } catch (err) {
+      setErrorMessage('An error occurred during login')
+      setIsSubmitting(false)
     }
   }
 
@@ -41,10 +85,12 @@ export default function LoginPage() {
       {/* Content grid: left hero, right login */}
       <div className="relative z-10 grid min-h-screen grid-cols-1 md:grid-cols-2">
         {/* Left hero content */}
-        <div className="flex items-center pl-6 pr-2 py-10 md:pl-12 md:pr-4">
-          <div className="max-w-lg text-white ml-2 md:ml-4">
+        <div className="flex items-center px-6 py-10 md:px-12">
+          <div className="max-w-lg text-white">
             
-            <h1 className="text-3xl font-bold md:text-4xl">Welcome to the Olongapo City Agriculture Registry</h1>
+            <h1 className="text-3xl font-bold md:text-4xl leading-tight">
+              Welcome to the Olongapo City Agriculture Registry
+            </h1>
             <p className="mt-3 text-sm md:text-base text-white/80">
               Manage registrations, records, and analytics across the department.
             </p>
@@ -67,8 +113,8 @@ export default function LoginPage() {
         </div>
 
         {/* Right login card */}
-        <div className="flex items-center justify-end pl-2 pr-4 md:pl-14 md:pr-26">
-          <Card className="w-full max-w-md mr-14 md:mr-26 border border-border shadow-lg">
+        <div className="flex items-center justify-end px-4 md:px-10">
+          <Card className="w-full max-w-md border border-border/70 shadow-lg">
             <div className="space-y-6 p-8">
               {/* Header */}
               <div className="space-y-3 text-center">
@@ -95,12 +141,12 @@ export default function LoginPage() {
               {/* Form */}
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Username</label>
+                  <label className="text-sm font-medium text-foreground">Email</label>
                   <Input
-                    type="text"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="border-border bg-background"
                   />
                 </div>
@@ -131,10 +177,15 @@ export default function LoginPage() {
                   type="submit"
                   className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                   size="lg"
+                  disabled={isSubmitting}
                 >
-                  Login
+                  {isSubmitting ? 'Signing in...' : 'Login'}
                 </Button>
               </form>
+
+              {errorMessage && (
+                <p className="text-sm text-destructive text-center">{errorMessage}</p>
+              )}
 
               {/* Footer */}
               <div className="border-t border-border pt-6 text-center">

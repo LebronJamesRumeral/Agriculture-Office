@@ -96,7 +96,7 @@ export function TopNav({
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-background px-6">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur sm:px-6">
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
@@ -112,22 +112,22 @@ export function TopNav({
         <h2 className="sr-only">{getPageTitle()}</h2>
       </div>
 
-      <div className="flex items-center gap-4">
-        {/* Date/Time and Weather (placed before notifications) */}
-        <div className="flex items-center gap-4 text-sm text-foreground">
-          <span>{formatNow()}</span>
-          <span className="flex items-center gap-1">
-            <WeatherIcon />
-            {weather?.temp !== undefined ? (
-              <>
-                <span>{Math.round(weather.temp)}°C</span>
-                <span className="text-muted-foreground">{weather?.desc}</span>
-              </>
-            ) : (
-              <span className="text-muted-foreground">Fetching weather…</span>
-            )}
-          </span>
-        </div>
+      {/* Allow content to wrap on smaller viewports */}
+      <div className="flex flex-wrap items-center justify-end gap-3 text-xs text-muted-foreground sm:text-sm">
+        {/* Keep date compact on small screens */}
+        <span className="whitespace-nowrap text-foreground">{formatNow()}</span>
+        {/* Hide weather on very small screens to reduce clutter */}
+        <span className="hidden items-center gap-1 sm:inline-flex">
+          <WeatherIcon />
+          {weather?.temp !== undefined ? (
+            <>
+              <span className="text-foreground">{Math.round(weather.temp)}°C</span>
+              <span className="text-muted-foreground">{weather?.desc}</span>
+            </>
+          ) : (
+            <span className="text-muted-foreground">Fetching weather...</span>
+          )}
+        </span>
 
         {/* Dark Mode Toggle */}
         {mounted && (
