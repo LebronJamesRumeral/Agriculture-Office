@@ -513,7 +513,7 @@ export default function SettingsPage() {
                         <SettingsIcon className="h-4 w-4 text-primary" />
                         Version
                       </div>
-                      <p className="mt-2 text-sm text-muted-foreground">1.1.0</p>
+                      <p className="mt-2 text-sm text-muted-foreground">1.1.1</p>
                     </div>
 
                     <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
