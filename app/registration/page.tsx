@@ -176,98 +176,12 @@ export default function RegistrationPage() {
           </div>
         </div>
 
-        {/* Info Cards Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="group relative overflow-hidden border border-border/50 bg-gradient-to-br from-background via-background to-muted/20 p-4 transition-all hover:shadow-md">
-            <div className="absolute right-0 top-0 h-20 w-20 translate-x-6 -translate-y-6 rounded-full bg-primary/5 transition-transform group-hover:scale-150" />
-            <div className="relative flex items-start gap-3">
-              <div className="rounded-lg bg-primary/10 p-2">
-                <UserPlus className="h-4 w-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">New Today</p>
-                <p className="text-xl font-bold text-foreground">+3</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="group relative overflow-hidden border border-border/50 bg-gradient-to-br from-background via-background to-muted/20 p-4 transition-all hover:shadow-md">
-            <div className="absolute right-0 top-0 h-20 w-20 translate-x-6 -translate-y-6 rounded-full bg-green-500/5 transition-transform group-hover:scale-150" />
-            <div className="relative flex items-start gap-3">
-              <div className="rounded-lg bg-green-500/10 p-2">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Completion Rate</p>
-                <p className="text-xl font-bold text-foreground">92%</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="group relative overflow-hidden border border-border/50 bg-gradient-to-br from-background via-background to-muted/20 p-4 transition-all hover:shadow-md">
-            <div className="absolute right-0 top-0 h-20 w-20 translate-x-6 -translate-y-6 rounded-full bg-amber-500/5 transition-transform group-hover:scale-150" />
-            <div className="relative flex items-start gap-3">
-              <div className="rounded-lg bg-amber-500/10 p-2">
-                <AlertCircle className="h-4 w-4 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Required Fields</p>
-                <p className="text-xl font-bold text-foreground">12</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="group relative overflow-hidden border border-border/50 bg-gradient-to-br from-background via-background to-muted/20 p-4 transition-all hover:shadow-md">
-            <div className="absolute right-0 top-0 h-20 w-20 translate-x-6 -translate-y-6 rounded-full bg-blue-500/5 transition-transform group-hover:scale-150" />
-            <div className="relative flex items-start gap-3">
-              <div className="rounded-lg bg-blue-500/10 p-2">
-                <HelpCircle className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">Quick Tips</p>
-                <p className="text-xl font-bold text-foreground">4</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
         {/* Main Content Area */}
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Registration Form - Takes 2/3 of the space */}
           <div className="lg:col-span-2">
             <Card className="border border-border/50 bg-gradient-to-br from-background via-background to-muted/20 p-6">
               <RegistrationForm onSubmit={handleSubmit} />
-              
-              {/* Form Actions */}
-              <div className="mt-6 flex items-center justify-end gap-3 border-t border-border/50 pt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => window.history.back()}
-                  className="gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  form="registration-form"
-                  disabled={isSubmitting}
-                  className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      Save Registration
-                    </>
-                  )}
-                </Button>
-              </div>
             </Card>
           </div>
 

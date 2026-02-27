@@ -110,6 +110,9 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
         Organic: current.organic ?? '',
         FourPsMember: current.fourPsMember ?? '',
         IPsMember: current.ipsMember ?? '',
+        PWDMember: current.pwdMember ?? '',
+        SeniorCitizen: current.seniorCitizen ?? '',
+        SoloParent: current.soloParent ?? '',
         SeverelyStuntedChildren: current.severelyStuntedChildren ?? '',
         MotherMaidenName: current.motherMaidenName ?? '',
         HouseholdHead: current.householdHead ?? '',
@@ -248,6 +251,9 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
                 { label: 'Organic (Y/N)', key: 'organic' },
                 { label: "4P's Member (Y/N)", key: 'fourPsMember' },
                 { label: "IP's Member (Y/N)", key: 'ipsMember' },
+                { label: "PWD Member (Y/N)", key: 'pwdMember' },
+                { label: "Senior Citizen (Y/N)", key: 'seniorCitizen' },
+                { label: "Solo Parent (Y/N)", key: 'soloParent' },
                 {
                   label: 'No. of Severely Stunted Children (0-59 months)',
                   key: 'severelyStuntedChildren',
@@ -352,6 +358,105 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
                     )
                   }
 
+                  if (field.key === 'gender') {
+                    return (
+                      <div key={field.label} className="space-y-1">
+                        <label className="text-xs font-semibold text-primary">
+                          {field.label}
+                        </label>
+                        <Select
+                          value={displayValue}
+                          onValueChange={(value) =>
+                            setEditData({
+                              ...current,
+                              gender: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Others">Others</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )
+                  }
+
+                  if (field.key === 'civilStatus') {
+                    return (
+                      <div key={field.label} className="space-y-1">
+                        <label className="text-xs font-semibold text-primary">
+                          {field.label}
+                        </label>
+                        <Select
+                          value={displayValue}
+                          onValueChange={(value) =>
+                            setEditData({
+                              ...current,
+                              civilStatus: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select civil status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Single">Single</SelectItem>
+                            <SelectItem value="Married">Married</SelectItem>
+                            <SelectItem value="Widowed">Widowed</SelectItem>
+                            <SelectItem value="Separated">Separated</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )
+                  }
+
+                  if (field.key === 'barangay') {
+                    return (
+                      <div key={field.label} className="space-y-1">
+                        <label className="text-xs font-semibold text-primary">
+                          {field.label}
+                        </label>
+                        <Select
+                          value={displayValue}
+                          onValueChange={(value) =>
+                            setEditData({
+                              ...current,
+                              barangay: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select barangay" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Asinan">Asinan</SelectItem>
+                            <SelectItem value="Banicain">Banicain</SelectItem>
+                            <SelectItem value="Barretto">Barretto</SelectItem>
+                            <SelectItem value="East Bajac-Bajac">East Bajac-Bajac</SelectItem>
+                            <SelectItem value="East Tapinac">East Tapinac</SelectItem>
+                            <SelectItem value="Gordon Heights">Gordon Heights</SelectItem>
+                            <SelectItem value="Kalaklan">Kalaklan</SelectItem>
+                            <SelectItem value="Mabayuan">Mabayuan</SelectItem>
+                            <SelectItem value="New Cabalan">New Cabalan</SelectItem>
+                            <SelectItem value="New Ilalim">New Ilalim</SelectItem>
+                            <SelectItem value="New Kababae">New Kababae</SelectItem>
+                            <SelectItem value="New Kalalake">New Kalalake</SelectItem>
+                            <SelectItem value="Old Cabalan">Old Cabalan</SelectItem>
+                            <SelectItem value="Pag-asa">Pag-asa</SelectItem>
+                            <SelectItem value="Santa Rita">Santa Rita</SelectItem>
+                            <SelectItem value="West Bajac-Bajac">West Bajac-Bajac</SelectItem>
+                            <SelectItem value="West Tapinac">West Tapinac</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )
+                  }
+
                   if (field.key === 'designation') {
                     return (
                       <div key={field.label} className="space-y-1">
@@ -380,6 +485,103 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
                     )
                   }
 
+                  if (field.key === 'typeOfId') {
+                    return (
+                      <div key={field.label} className="space-y-1">
+                        <label className="text-xs font-semibold text-primary">
+                          {field.label}
+                        </label>
+                        <Select
+                          value={displayValue}
+                          onValueChange={(value) =>
+                            setEditData({
+                              ...current,
+                              typeOfId: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select ID type" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[300px]">
+                            <SelectItem value="Philippine Passport">Philippine Passport</SelectItem>
+                            <SelectItem value="National ID">National ID</SelectItem>
+                            <SelectItem value="Driver's License">Driver's License</SelectItem>
+                            <SelectItem value="SSS ID">SSS ID</SelectItem>
+                            <SelectItem value="GSIS ID">GSIS ID</SelectItem>
+                            <SelectItem value="UMID">UMID (Unified Multi-Purpose ID)</SelectItem>
+                            <SelectItem value="PhilHealth ID">PhilHealth ID</SelectItem>
+                            <SelectItem value="TIN ID">TIN ID</SelectItem>
+                            <SelectItem value="Postal ID">Postal ID</SelectItem>
+                            <SelectItem value="Voter's ID">Voter's ID</SelectItem>
+                            <SelectItem value="PRC ID">PRC ID</SelectItem>
+                            <SelectItem value="Senior Citizen ID">Senior Citizen ID</SelectItem>
+                            <SelectItem value="PWD ID">PWD ID</SelectItem>
+                            <SelectItem value="Barangay ID">Barangay ID</SelectItem>
+                            <SelectItem value="NBI Clearance">NBI Clearance</SelectItem>
+                            <SelectItem value="Police Clearance">Police Clearance</SelectItem>
+                            <SelectItem value="Pag-IBIG ID">Pag-IBIG ID</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )
+                  }
+
+                  if (['organic', 'fourPsMember', 'ipsMember', 'pwdMember', 'seniorCitizen', 'soloParent', 'householdHead'].includes(field.key)) {
+                    return (
+                      <div key={field.label} className="space-y-1">
+                        <label className="text-xs font-semibold text-primary">
+                          {field.label}
+                        </label>
+                        <Select
+                          value={displayValue}
+                          onValueChange={(value) =>
+                            setEditData({
+                              ...current,
+                              [field.key]: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Yes">Yes</SelectItem>
+                            <SelectItem value="No">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )
+                  }
+
+                  if (field.key === 'farmerFisherfolkBoth') {
+                    return (
+                      <div key={field.label} className="space-y-1">
+                        <label className="text-xs font-semibold text-primary">
+                          {field.label}
+                        </label>
+                        <Select
+                          value={displayValue}
+                          onValueChange={(value) =>
+                            setEditData({
+                              ...current,
+                              farmerFisherfolkBoth: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Farmer">Farmer</SelectItem>
+                            <SelectItem value="Fisherfolk">Fisherfolk</SelectItem>
+                            <SelectItem value="Both">Both</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )
+                  }
+
                   if (field.key === 'createdAt') {
                     return (
                       <div key={field.label} className="space-y-1">
@@ -401,7 +603,7 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
                         onChange={(e) =>
                           setEditData({
                             ...current,
-                            [field.key as keyof Record]: e.target.value,
+                            [field.key as keyof RecordItem]: e.target.value,
                           })
                         }
                       />

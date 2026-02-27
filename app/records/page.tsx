@@ -30,10 +30,10 @@ import {
   FileText,
   Calendar,
   ArrowUpDown,
-  MoreHorizontal,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  CreditCard
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -429,9 +429,11 @@ export default function RecordsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="All">All Sectors</SelectItem>
-                    {filterOptions.sectors.map(sector => (
-                      <SelectItem key={sector} value={sector}>{sector}</SelectItem>
-                    ))}
+                    <SelectItem value="Indigenous Peoples (IPs)">Indigenous Peoples (IPs)</SelectItem>
+                    <SelectItem value="4Ps Beneficiaries">4Ps Beneficiaries</SelectItem>
+                    <SelectItem value="PWDs">PWDs</SelectItem>
+                    <SelectItem value="Senior Citizens">Senior Citizens</SelectItem>  
+                    <SelectItem value="None">None</SelectItem>  
                   </SelectContent>
                 </Select>
               </div>
@@ -443,10 +445,7 @@ export default function RecordsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="All">All Organizations</SelectItem>
-                    {filterOptions.organizations.map(org => (
-                      <SelectItem key={org} value={org}>{org}</SelectItem>
-                    ))}
+                    <SelectItem value="All">All Organizations</SelectItem>                             
                   </SelectContent>
                 </Select>
               </div>
@@ -455,13 +454,30 @@ export default function RecordsPage() {
                 <label className="text-xs font-medium text-foreground">ID Type</label>
                 <Select value={filterID} onValueChange={setFilterID}>
                   <SelectTrigger className="h-9 border-border/50 bg-background/50">
-                    <SelectValue />
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                      <SelectValue placeholder="All ID Types" />
+                    </div>
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px]">
                     <SelectItem value="All">All ID Types</SelectItem>
-                    {filterOptions.idTypes.map(idType => (
-                      <SelectItem key={idType} value={idType}>{idType}</SelectItem>
-                    ))}
+                    <SelectItem value="Philippine Passport">Philippine Passport</SelectItem>
+                    <SelectItem value="National ID">National ID</SelectItem>
+                    <SelectItem value="Driver's License">Driver's License</SelectItem>
+                    <SelectItem value="SSS ID">SSS ID</SelectItem>
+                    <SelectItem value="GSIS ID">GSIS ID</SelectItem>
+                    <SelectItem value="UMID">UMID (Unified Multi-Purpose ID)</SelectItem>
+                    <SelectItem value="PhilHealth ID">PhilHealth ID</SelectItem>
+                    <SelectItem value="TIN ID">TIN ID</SelectItem>
+                    <SelectItem value="Postal ID">Postal ID</SelectItem>
+                    <SelectItem value="Voter's ID">Voter's ID</SelectItem>
+                    <SelectItem value="PRC ID">PRC ID</SelectItem>
+                    <SelectItem value="Senior Citizen ID">Senior Citizen ID</SelectItem>
+                    <SelectItem value="PWD ID">PWD ID</SelectItem>
+                    <SelectItem value="Barangay ID">Barangay ID</SelectItem>
+                    <SelectItem value="NBI Clearance">NBI Clearance</SelectItem>
+                    <SelectItem value="Police Clearance">Police Clearance</SelectItem>
+                    <SelectItem value="Pag-IBIG ID">Pag-IBIG ID</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
