@@ -8,26 +8,40 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle } from 'lucide-react'
 
 interface FormData {
-  fullName: string
+  lastName: string
+  firstName: string
+  middleName: string
+  extName: string
+  birthdate: string
   age: string
   gender: string
-  address: string
+  civilStatus: string
   barangay: string
-  contactNumber: string
-  type: string
-  cropType: string
-  yearsExperience: string
-  notes: string
-  email?: string
-  civilStatus?: string
-  nationalId?: string
-  education?: string
-  livelihood?: string
-  areaSize?: string
-  householdSize?: string
-  emergencyName?: string
-  emergencyContact?: string
-  registrationDate?: string
+  designation: string
+  unaKard: string
+  imc: string
+  uMobileAccount: string
+  lguCodeNo: string
+  ffrsSystemGeneratedNo: string
+  ffrsDateEncoded: string
+  fishrNo: string
+  contactNo: string
+  association: string
+  familyMembers: string
+  organic: string
+  fourPsMember: string
+  ipsMember: string
+  severelyStuntedChildren: string
+  motherMaidenName: string
+  householdHead: string
+  householdHeadSpecify: string
+  typeOfId: string
+  idNo: string
+  farmerFisherfolkBoth: string
+  farmType: string
+  cropAreaOrHeads: string
+  cropName: string
+  remarks: string
 }
 
 export default function RegistrationPage() {
@@ -43,6 +57,10 @@ export default function RegistrationPage() {
       setSubmittedData(null)
     }, 5000)
   }
+
+  const displayName = submittedData
+    ? `${submittedData.firstName} ${submittedData.lastName}`.trim()
+    : 'applicant'
 
   return (
     <AppLayout>
@@ -60,8 +78,8 @@ export default function RegistrationPage() {
           <Alert className="border-green-500 bg-green-500/10">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800 dark:text-green-200">
-              Registration submitted successfully for <strong>{submittedData?.fullName}</strong>!
-              The record has been added to the system.
+              Registration submitted successfully for <strong>{displayName}</strong>! The record has
+              been added to the system.
             </AlertDescription>
           </Alert>
         )}
@@ -81,7 +99,7 @@ export default function RegistrationPage() {
             </li>
             <li className="flex gap-2">
               <span className="text-primary">•</span>
-              <span>Crop/Fish Type and Years of Experience are optional but recommended</span>
+              <span>Household head details are needed when the applicant is not the head</span>
             </li>
             <li className="flex gap-2">
               <span className="text-primary">•</span>
@@ -89,7 +107,7 @@ export default function RegistrationPage() {
             </li>
             <li className="flex gap-2">
               <span className="text-primary">•</span>
-              <span>Use the Notes field for any additional relevant information</span>
+              <span>Remarks can be used for any additional relevant information</span>
             </li>
           </ul>
         </Card>

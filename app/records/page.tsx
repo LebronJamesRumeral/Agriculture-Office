@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/app-layout'
 import { Card } from '@/components/ui/card'
@@ -14,49 +14,60 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { RecordModal } from '@/components/record-modal'
-import { getAllFarmers, deleteFarmer, type Farmer } from '@/lib/farmers-service'
-import { Eye, Trash2, Plus } from 'lucide-react'
+import { mockRecords } from '@/lib/mock-data'
+import { Eye, Trash2, Plus, Download } from 'lucide-react'
+
+interface Record {
+  id: number
+  name: string
+  type: 'Farmer' | 'Fisherfolk' | 'Both'
+  barangay: string
+  contactNumber: string
+  cropType: string
+  yearsExperience: number
+  createdAt: string
+  status: 'Active' | 'Inactive'
+  lastName?: string
+  firstName?: string
+  middleName?: string
+  contactNo?: string
+  farmerFisherfolkBoth?: string
+  idNo?: string
+}
 
 export default function RecordsPage() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
-  const [filterType, setFilterType] = useState<'All' | 'farmer' | 'fisherfolk'>('All')
-  const [filterStatus, setFilterStatus] = useState<'All' | 'active' | 'inactive'>('All')
-  const [selectedRecord, setSelectedRecord] = useState<Farmer | null>(null)
+  const [filterType, setFilterType] = useState<'All' | 'Farmer' | 'Fisherfolk' | 'Both'>('All')
+  const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Inactive'>('All')
+  const [filterSector, setFilterSector] = useState('All')
+  const [filterOrganization, setFilterOrganization] = useState('All')
+  const [filterID, setFilterID] = useState('All')
+  const [selectedRecord, setSelectedRecord] = useState<Record | null>(null)
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('view')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [farmers, setFarmers] = useState<Farmer[]>([])
-  const [loading, setLoading] = useState(true)
   const itemsPerPage = 10
-
-  // Fetch farmers from Supabase
-  useEffect(() => {
-    async function loadFarmers() {
-      try {
-        const data = await getAllFarmers()
-        setFarmers(data)
-      } catch (error) {
-        console.error('Error loading farmers:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadFarmers()
-  }, [])
 
   // Filter and search records
   const filteredRecords = useMemo(() => {
-    return farmers.filter((farmer) => {
-      const matchesType = filterType === 'All' || farmer.farmer_type === filterType
-      const matchesStatus = filterStatus === 'All' || farmer.status === filterStatus
-      const matchesSearch = farmer.full_name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-        farmer.barangay.toLowerCase().includes(searchQuery.toLowerCase())
-      return matchesType && matchesStatus && matchesSearch
+    return mockRecords.filter((record: Record) => {
+      const recordType = record.farmerFisherfolkBoth ?? record.type
+      const matchesType = filterType === 'All' || recordType === filterType
+      const matchesStatus = filterStatus === 'All' || record.status === filterStatus
+      const matchesSector = filterSector === 'All' || (record as any).sector === filterSector
+      const matchesOrganization = filterOrganization === 'All' || (record as any).organization === filterOrganization
+      const matchesID = filterID === 'All' || (record as any).typeOfId === filterID
+      const matchesSearch =
+        record.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.barangay.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.contactNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.idNo?.toLowerCase().includes(searchQuery.toLowerCase())
+      return matchesType && matchesStatus && matchesSector && matchesOrganization && matchesID && matchesSearch
     })
-  }, [searchQuery, filterType, filterStatus, farmers])
+  }, [searchQuery, filterType, filterStatus, filterSector, filterOrganization, filterID])
 
   // Pagination
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage)
@@ -65,32 +76,71 @@ export default function RecordsPage() {
     currentPage * itemsPerPage
   )
 
-  const handleViewRecord = (farmer: Farmer) => {
-    setSelectedRecord(farmer)
+  const handleViewRecord = (record: Record) => {
+    setSelectedRecord(record)
     setModalMode('view')
     setIsModalOpen(true)
   }
 
-  const handleDeleteRecord = async (id: string) => {
-    if (confirm('Are you sure you want to delete this record?')) {
-      try {
-        await deleteFarmer(id)
-        setFarmers(farmers.filter(f => f.id !== id))
-      } catch (error) {
-        console.error('Error deleting farmer:', error)
-        alert('Failed to delete record')
-      }
-    }
+  // Removed Edit action; modal remains view-only in UI
+
+  const handleDeleteRecord = (id: number) => {
+    // Mock delete - in real app, would call API
+    console.log('Delete record:', id)
   }
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-screen">
-          <p className="text-muted-foreground">Loading records...</p>
-        </div>
-      </AppLayout>
-    )
+  const handleExportToExcel = () => {
+    // Prepare CSV data from filtered records
+    const headers = [
+      'Last Name',
+      'First Name',
+      'Middle Name',
+      'Barangay',
+      'Contact No.',
+      'Type',
+      'ID No.',
+      'Status',
+      'Crop Type',
+      'Years Experience',
+      'Created At'
+    ]
+
+    const csvRows = [
+      headers.join(','),
+      ...filteredRecords.map((record: Record) => {
+        const recordType = record.farmerFisherfolkBoth ?? record.type
+        const lastName = record.lastName ?? record.name.split(' ').slice(-1)[0]
+        const firstName = record.firstName ?? record.name.split(' ')[0]
+        const middleName = record.middleName ?? record.name.split(' ').slice(1, -1).join(' ')
+        const contactNo = record.contactNo ?? record.contactNumber
+        
+        return [
+          `"${lastName}"`,
+          `"${firstName}"`,
+          `"${middleName || '—'}"`,
+          `"${record.barangay}"`,
+          `"${contactNo}"`,
+          `"${recordType}"`,
+          `"${record.idNo ?? '—'}"`,
+          `"${record.status}"`,
+          `"${record.cropType ?? '—'}"`,
+          `"${record.yearsExperience ?? '—'}"`,
+          `"${record.createdAt}"`
+        ].join(',')
+      })
+    ]
+
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    
+    link.setAttribute('href', url)
+    link.setAttribute('download', `records_export_${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   return (
@@ -116,9 +166,9 @@ export default function RecordsPage() {
 
         {/* Search and Filter */}
         <Card className="border border-border bg-card p-4">
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-6">
             {/* Search */}
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Search</label>
               <Input
                 placeholder="Search by name or barangay..."
@@ -146,8 +196,9 @@ export default function RecordsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All Types</SelectItem>
-                  <SelectItem value="farmer">Farmers</SelectItem>
-                  <SelectItem value="fisherfolk">Fisherfolks</SelectItem>
+                  <SelectItem value="Farmer">Farmers</SelectItem>
+                  <SelectItem value="Fisherfolk">Fisherfolks</SelectItem>
+                  <SelectItem value="Both">Both</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -167,17 +218,108 @@ export default function RecordsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Filter by Sector */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Sector</label>
+              <Select
+                value={filterSector}
+                onValueChange={(value: any) => {
+                  setFilterSector(value)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="border-border bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
+                  <SelectItem value="IPs">IPs</SelectItem>
+                  <SelectItem value="4ps">4ps</SelectItem>
+                  <SelectItem value="solo parent">Solo Parent</SelectItem>
+                  <SelectItem value="senior citizen">Senior Citizen</SelectItem>
+                  <SelectItem value="pwd">PWD</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Filter by Organizations */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Organizations</label>
+              <Select
+                value={filterOrganization}
+                onValueChange={(value: any) => {
+                  setFilterOrganization(value)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="border-border bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
+                  <SelectItem value="association">Association</SelectItem>
+                  <SelectItem value="federation">Federation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Filter by ID */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">ID</label>
+              <Select
+                value={filterID}
+                onValueChange={(value: any) => {
+                  setFilterID(value)
+                  setCurrentPage(1)
+                }}
+              >
+                <SelectTrigger className="border-border bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="All">All</SelectItem>
+                  <SelectItem value="Philippine Passport">Philippine Passport</SelectItem>
+                  <SelectItem value="Driver's License">Driver's License</SelectItem>
+                  <SelectItem value="SSS ID">SSS ID</SelectItem>
+                  <SelectItem value="GSIS ID">GSIS ID</SelectItem>
+                  <SelectItem value="UMID">UMID</SelectItem>
+                  <SelectItem value="PhilHealth ID">PhilHealth ID</SelectItem>
+                  <SelectItem value="TIN ID">TIN ID</SelectItem>
+                  <SelectItem value="Postal ID">Postal ID</SelectItem>
+                  <SelectItem value="Voter's ID">Voter's ID</SelectItem>
+                  <SelectItem value="PRC ID">PRC ID</SelectItem>
+                  <SelectItem value="Senior Citizen ID">Senior Citizen ID</SelectItem>
+                  <SelectItem value="PWD ID">PWD ID</SelectItem>
+                  <SelectItem value="Barangay ID">Barangay ID</SelectItem>
+                  <SelectItem value="NBI Clearance">NBI Clearance</SelectItem>
+                  <SelectItem value="Police Clearance">Police Clearance</SelectItem>
+                  <SelectItem value="Pag-IBIG ID">Pag-IBIG ID</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Results Count */}
-          <p className="mt-4 text-sm text-muted-foreground">
-            Showing {paginatedRecords.length} of {filteredRecords.length} records
-          </p>
+          {/* Results Count and Export Button */}
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {paginatedRecords.length} of {filteredRecords.length} records
+            </p>
+            <Button
+              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={handleExportToExcel}
+              title="Export filtered records to Excel"
+            >
+              <Download className="h-5 w-5" />
+              Export to Excel
+            </Button>
+          </div>
         </Card>
 
         {/* Table */}
@@ -187,22 +329,25 @@ export default function RecordsPage() {
               <thead>
                 <tr className="border-b border-border bg-muted">
                   <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                    Name
+                    Last Name
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                    Type
+                    First Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Middle Name
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                     Barangay
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                    Contact
+                    Contact No.
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                    Crop/Fish Type
+                    Type
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                    Experience
+                    ID No.
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                     Status
@@ -220,72 +365,41 @@ export default function RecordsPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedRecords.map((farmer) => (
+                  paginatedRecords.map((record: Record) => (
                     <tr
-                      key={farmer.id}
+                      key={record.id}
                       className="border-b border-border hover:bg-muted/50 transition-colors"
                     >
                       <td className="px-6 py-4 text-sm font-medium text-foreground">
-                        {farmer.full_name}
+                        {record.lastName ?? record.name.split(' ').slice(-1)[0]}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {record.firstName ?? record.name.split(' ')[0]}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {(record.middleName ?? record.name.split(' ').slice(1, -1).join(' ')) || '—'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {record.barangay}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {record.contactNo ?? record.contactNumber}
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
                         <span
                           className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                            farmer.farmer_type === 'farmer'
+                            (record.farmerFisherfolkBoth ?? record.type) === 'Farmer'
                               ? 'bg-green-500/20 text-green-700 dark:text-green-400'
-                              : 'bg-blue-500/20 text-blue-700 dark:text-blue-400'
+                              : (record.farmerFisherfolkBoth ?? record.type) === 'Both'
+                                ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
+                                : 'bg-blue-500/20 text-blue-700 dark:text-blue-400'
                           }`}
                         >
-                          {farmer.farmer_type === 'farmer' ? 'Farmer' : 'Fisherfolk'}
+                          {record.farmerFisherfolkBoth ?? record.type}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
-                        {farmer.barangay}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-foreground">
-                        {farmer.phone || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-foreground">
-                        {farmer.crop_type || farmer.fishing_vessel || 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-foreground">
-                        {farmer.farm_size ? `${farmer.farm_size} ha` : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-foreground">
-                        <span
-                          className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-                            farmer.status === 'active'
-                              ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
-                              : 'bg-slate-500/20 text-slate-700 dark:text-slate-400'
-                          }`}
-                        >
-                          {farmer.status === 'active' ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-2"
-                            onClick={() => handleViewRecord(farmer)}
-                          >
-                            <Eye className="h-4 w-4" />
-                            View
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            className="gap-2"
-                            onClick={() => handleDeleteRecord(farmer.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-foreground">
-                        {record.yearsExperience} years
+                        {record.idNo ?? '—'}
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
                         <span

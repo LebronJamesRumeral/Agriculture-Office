@@ -1,20 +1,19 @@
 "use client"
 
-import { Bell, Moon, Sun, LogOut, User, Cloud, CloudRain } from 'lucide-react'
+import { Moon, Sun, Cloud, CloudRain, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { useTheme } from 'next-themes'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 
-export function TopNav() {
+export function TopNav({
+  isSidebarCollapsed,
+  onToggleSidebar,
+}: {
+  isSidebarCollapsed: boolean
+  onToggleSidebar: () => void
+}) {
   const { theme, setTheme } = useTheme()
-  const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [now, setNow] = useState<Date>(new Date())
@@ -84,10 +83,6 @@ export function TopNav() {
     return <Cloud className="h-4 w-4" />
   }
 
-  const handleLogout = () => {
-    router.push('/')
-  }
-
   const getPageTitle = () => {
     const segment = pathname.split('/')[1]
     const titles: Record<string, string> = {
@@ -101,8 +96,18 @@ export function TopNav() {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background px-6 py-4">
-      <div className="flex items-center gap-6">
+    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-background px-6">
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleSidebar}
+          className="hidden md:inline-flex"
+          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
         {/* Page title kept for SR only */}
         <h2 className="sr-only">{getPageTitle()}</h2>
       </div>
@@ -124,12 +129,6 @@ export function TopNav() {
           </span>
         </div>
 
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
-        </Button>
-
         {/* Dark Mode Toggle */}
         {mounted && (
           <Button
@@ -144,22 +143,6 @@ export function TopNav() {
             )}
           </Button>
         )}
-
-        {/* User Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <User className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Logout</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
     </header>
   )
