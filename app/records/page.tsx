@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/app-layout'
 import { Card } from '@/components/ui/card'
@@ -21,6 +21,7 @@ import {
   Trash2, 
   Plus, 
   Download, 
+  Upload,
   Search, 
   X,
   Filter,
@@ -38,10 +39,279 @@ import {
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
+type ImportableRecordRow = Omit<RecordRow, 'id' | 'created_at'>
+
+type ImportRecordPayload = {
+  [K in keyof ImportableRecordRow]?: ImportableRecordRow[K] | null
+}
+
+type ExistingImportRecord = {
+  id: number
+  id_no: string | null
+  lgu_code_no: string | null
+  fishr_no: string | null
+  first_name: string | null
+  last_name: string | null
+  birthdate: string | null
+  barangay: string | null
+  contact_no: string | null
+  contact_number: string | null
+  name: string | null
+  type: string | null
+  crop_type: string | null
+  years_experience: number | null
+  status: string | null
+  middle_name: string | null
+  ext_name: string | null
+  age: number | null
+  gender: string | null
+  civil_status: string | null
+  designation: string | null
+  una_kard: string | null
+  imc: string | null
+  u_mobile_account: string | null
+  ffrs_system_generated_no: string | null
+  ffrs_date_encoded: string | null
+  association: string | null
+  family_members: number | null
+  organic: string | null
+  four_ps_member: string | null
+  ips_member: string | null
+  severely_stunted_children: number | null
+  mother_maiden_name: string | null
+  household_head: string | null
+  household_head_specify: string | null
+  type_of_id: string | null
+  farmer_fisherfolk_both: string | null
+  farm_type: string | null
+  crop_area_or_heads: string | null
+  crop_name: string | null
+  remarks: string | null
+}
+
+const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
+  name: 'name',
+  type: 'type',
+  barangay: 'barangay',
+  contactnumber: 'contact_number',
+  contactno: 'contact_no',
+  croptype: 'crop_type',
+  yearsexperience: 'years_experience',
+  status: 'status',
+  lastname: 'last_name',
+  firstname: 'first_name',
+  middlename: 'middle_name',
+  extname: 'ext_name',
+  birthdate: 'birthdate',
+  age: 'age',
+  gender: 'gender',
+  civilstatus: 'civil_status',
+  designation: 'designation',
+  unakard: 'una_kard',
+  imc: 'imc',
+  umobileaccount: 'u_mobile_account',
+  lgucodeno: 'lgu_code_no',
+  ffrssystemgeneratedno: 'ffrs_system_generated_no',
+  ffrsdateencoded: 'ffrs_date_encoded',
+  fishrno: 'fishr_no',
+  association: 'association',
+  organization: 'association',
+  familymembers: 'family_members',
+  organic: 'organic',
+  fourpsmember: 'four_ps_member',
+  ipsmember: 'ips_member',
+  severelystuntedchildren: 'severely_stunted_children',
+  mothermaidenname: 'mother_maiden_name',
+  householdhead: 'household_head',
+  householdheadspecify: 'household_head_specify',
+  typeofid: 'type_of_id',
+  idno: 'id_no',
+  farmerfisherfolkboth: 'farmer_fisherfolk_both',
+  farmtype: 'farm_type',
+  cropareaorheads: 'crop_area_or_heads',
+  cropname: 'crop_name',
+  remarks: 'remarks',
+  sector: 'designation',
+}
+
+const NUMBER_FIELDS = new Set<keyof ImportableRecordRow>([
+  'years_experience',
+  'age',
+  'family_members',
+  'severely_stunted_children',
+])
+
+const normalizeHeader = (header: string) =>
+  header.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const normalizeKeyValue = (value?: string | null) => (value ?? '').trim().toLowerCase()
+
+const normalizeComparableValue = (value: unknown) => {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number') return String(value)
+  return String(value)
+}
+
+const parseCsvLine = (line: string): string[] => {
+  const values: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i]
+
+    if (char === '"') {
+      const escapedQuote = inQuotes && line[i + 1] === '"'
+      if (escapedQuote) {
+        current += '"'
+        i += 1
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+
+    if (char === ',' && !inQuotes) {
+      values.push(current)
+      current = ''
+      continue
+    }
+
+    current += char
+  }
+
+  values.push(current)
+  return values
+}
+
+const parseCsvRows = (csvText: string): Array<Record<string, string>> => {
+  const lines = csvText
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.length > 0)
+
+  if (lines.length < 2) return []
+
+  const headers = parseCsvLine(lines[0]).map((header) => header.trim())
+
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line)
+    const row: Record<string, string> = {}
+
+    headers.forEach((header, index) => {
+      row[header] = (values[index] ?? '').trim()
+    })
+
+    return row
+  })
+}
+
+const mapCsvRowToPayload = (rawRow: Record<string, string>): ImportRecordPayload | null => {
+  const payload: ImportRecordPayload = {}
+
+  Object.entries(rawRow).forEach(([header, value]) => {
+    const field = CSV_FIELD_MAP[normalizeHeader(header)]
+    if (!field) return
+
+    const trimmedValue = value.trim()
+    if (trimmedValue === '') {
+      ;(payload as Record<string, unknown>)[field] = null
+      return
+    }
+
+    if (NUMBER_FIELDS.has(field)) {
+      const parsed = Number(trimmedValue)
+      ;(payload as Record<string, unknown>)[field] = Number.isNaN(parsed) ? null : parsed
+      return
+    }
+
+    ;(payload as Record<string, unknown>)[field] = trimmedValue
+  })
+
+  if (!payload.contact_number && payload.contact_no) {
+    payload.contact_number = payload.contact_no
+  }
+  if (!payload.contact_no && payload.contact_number) {
+    payload.contact_no = payload.contact_number
+  }
+  if (!payload.crop_type && payload.crop_name) {
+    payload.crop_type = payload.crop_name
+  }
+  if (!payload.crop_name && payload.crop_type) {
+    payload.crop_name = payload.crop_type
+  }
+  if (!payload.type && payload.farmer_fisherfolk_both) {
+    payload.type = payload.farmer_fisherfolk_both
+  }
+  if (!payload.farmer_fisherfolk_both && payload.type) {
+    payload.farmer_fisherfolk_both = payload.type
+  }
+  if (!payload.status) {
+    payload.status = 'Active'
+  }
+
+  if (!payload.name) {
+    const fullName = [payload.first_name, payload.middle_name, payload.last_name, payload.ext_name]
+      .filter((part) => typeof part === 'string' && part.trim().length > 0)
+      .join(' ')
+      .trim()
+    payload.name = fullName || null
+  }
+
+  const hasContent = Object.values(payload).some((value) => value !== null && value !== '')
+  return hasContent ? payload : null
+}
+
+const buildImportKey = (row: {
+  id_no?: string | null
+  lgu_code_no?: string | null
+  fishr_no?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  birthdate?: string | null
+  barangay?: string | null
+  contact_no?: string | null
+  contact_number?: string | null
+}) => {
+  const idNo = normalizeKeyValue(row.id_no)
+  if (idNo) return `id:${idNo}`
+
+  const lguCode = normalizeKeyValue(row.lgu_code_no)
+  if (lguCode) return `lgu:${lguCode}`
+
+  const fishrNo = normalizeKeyValue(row.fishr_no)
+  if (fishrNo) return `fishr:${fishrNo}`
+
+  const firstName = normalizeKeyValue(row.first_name)
+  const lastName = normalizeKeyValue(row.last_name)
+  const birthdate = normalizeKeyValue(row.birthdate)
+  if (firstName && lastName && birthdate) return `person:${firstName}|${lastName}|${birthdate}`
+
+  const barangay = normalizeKeyValue(row.barangay)
+  const contact = normalizeKeyValue(row.contact_no ?? row.contact_number)
+  if (firstName && lastName && barangay && contact) {
+    return `fallback:${firstName}|${lastName}|${barangay}|${contact}`
+  }
+
+  return null
+}
+
+const hasChanges = (existing: ExistingImportRecord, incoming: ImportRecordPayload) => {
+  return Object.entries(incoming).some(([key, value]) => {
+    if (key === 'id') return false
+    const existingValue = (existing as unknown as Record<string, unknown>)[key]
+    return normalizeComparableValue(existingValue) !== normalizeComparableValue(value)
+  })
+}
+
 export default function RecordsPage() {
   const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [records, setRecords] = useState<RecordItem[]>([])
   const [recordsLoading, setRecordsLoading] = useState(true)
+  const [isImporting, setIsImporting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<'All' | 'Farmer' | 'Fisherfolk' | 'Both'>('All')
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Inactive'>('All')
@@ -55,28 +325,24 @@ export default function RecordsPage() {
   const [showFilters, setShowFilters] = useState(true)
   const itemsPerPage = 10
 
-  useEffect(() => {
-    let mounted = true
-    const loadRecords = async () => {
-      setRecordsLoading(true)
-      const { data, error } = await supabase
-        .from('records')
-        .select('*')
-        .order('id', { ascending: false })
-      if (!mounted) return
-      if (error) {
-        console.error('Failed to load records', error)
-        setRecords([])
-      } else {
-        setRecords((data ?? []).map((row) => mapRecordRow(row as RecordRow)))
-      }
+  const loadRecords = async () => {
+    setRecordsLoading(true)
+    const { data, error } = await supabase
+      .from('records')
+      .select('*')
+      .order('id', { ascending: false })
+    if (error) {
+      console.error('Failed to load records', error)
+      setRecords([])
       setRecordsLoading(false)
+      return
     }
+    setRecords((data ?? []).map((row) => mapRecordRow(row as RecordRow)))
+    setRecordsLoading(false)
+  }
 
-    loadRecords()
-    return () => {
-      mounted = false
-    }
+  useEffect(() => {
+    void loadRecords()
   }, [])
 
   // Get unique values for filter options
@@ -231,6 +497,140 @@ export default function RecordsPage() {
     document.body.removeChild(link)
   }
 
+  const handleOpenImport = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleImportCsv = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    try {
+      setIsImporting(true)
+      const csvText = await file.text()
+      const parsedRows = parseCsvRows(csvText)
+
+      if (parsedRows.length === 0) {
+        alert('No valid rows found in the CSV file.')
+        return
+      }
+
+      const mappedRows = parsedRows
+        .map(mapCsvRowToPayload)
+        .filter((row): row is ImportRecordPayload => row !== null)
+
+      if (mappedRows.length === 0) {
+        alert('No importable values found. Please check your CSV columns.')
+        return
+      }
+
+      const dedupedIncoming = new Map<string, ImportRecordPayload>()
+      const noKeyIncoming: ImportRecordPayload[] = []
+
+      mappedRows.forEach((row) => {
+        const key = buildImportKey({
+          id_no: (row.id_no as string | null | undefined) ?? null,
+          lgu_code_no: (row.lgu_code_no as string | null | undefined) ?? null,
+          fishr_no: (row.fishr_no as string | null | undefined) ?? null,
+          first_name: (row.first_name as string | null | undefined) ?? null,
+          last_name: (row.last_name as string | null | undefined) ?? null,
+          birthdate: (row.birthdate as string | null | undefined) ?? null,
+          barangay: (row.barangay as string | null | undefined) ?? null,
+          contact_no: (row.contact_no as string | null | undefined) ?? null,
+          contact_number: (row.contact_number as string | null | undefined) ?? null,
+        })
+
+        if (!key) {
+          noKeyIncoming.push(row)
+          return
+        }
+
+        dedupedIncoming.set(key, row)
+      })
+
+      const { data: existingData, error: existingError } = await supabase
+        .from('records')
+        .select('id,id_no,lgu_code_no,fishr_no,first_name,last_name,birthdate,barangay,contact_no,contact_number,name,type,crop_type,years_experience,status,middle_name,ext_name,age,gender,civil_status,designation,una_kard,imc,u_mobile_account,ffrs_system_generated_no,ffrs_date_encoded,association,family_members,organic,four_ps_member,ips_member,severely_stunted_children,mother_maiden_name,household_head,household_head_specify,type_of_id,farmer_fisherfolk_both,farm_type,crop_area_or_heads,crop_name,remarks')
+
+      if (existingError) {
+        console.error('Failed to load existing records for import matching', existingError)
+        alert('Import failed. Could not check existing records.')
+        return
+      }
+
+      const existingMap = new Map<string, ExistingImportRecord>()
+      ;(existingData as ExistingImportRecord[]).forEach((record) => {
+        const key = buildImportKey(record)
+        if (key && !existingMap.has(key)) {
+          existingMap.set(key, record)
+        }
+      })
+
+      const rowsToInsert: ImportRecordPayload[] = []
+      const rowsToUpdate: Array<{ id: number; payload: ImportRecordPayload }> = []
+      let skippedUnchanged = 0
+
+      dedupedIncoming.forEach((incoming, key) => {
+        const existing = existingMap.get(key)
+
+        if (!existing) {
+          rowsToInsert.push(incoming)
+          return
+        }
+
+        if (!hasChanges(existing, incoming)) {
+          skippedUnchanged += 1
+          return
+        }
+
+        rowsToUpdate.push({ id: existing.id, payload: incoming })
+      })
+
+      rowsToInsert.push(...noKeyIncoming)
+
+      if (rowsToInsert.length === 0 && rowsToUpdate.length === 0) {
+        alert('Import complete. No new or updated records detected.')
+        return
+      }
+
+      const chunkSize = 200
+      for (let i = 0; i < rowsToInsert.length; i += chunkSize) {
+        const chunk = rowsToInsert.slice(i, i + chunkSize)
+        if (chunk.length === 0) continue
+        const { error: insertError } = await supabase.from('records').insert(chunk)
+        if (insertError) {
+          console.error('Failed to insert imported records', insertError)
+          alert('Import failed while adding new records. Please verify the CSV data.')
+          return
+        }
+      }
+
+      for (const update of rowsToUpdate) {
+        const { error: updateError } = await supabase
+          .from('records')
+          .update(update.payload)
+          .eq('id', update.id)
+
+        if (updateError) {
+          console.error('Failed to update imported record', updateError)
+          alert('Import failed while updating existing records. Please retry.')
+          return
+        }
+      }
+
+      await loadRecords()
+      alert(
+        `Import complete. Added ${rowsToInsert.length}, updated ${rowsToUpdate.length}, skipped ${skippedUnchanged}.`
+      )
+    } catch (error) {
+      console.error('CSV import failed', error)
+      alert('Unable to import CSV. Please try again.')
+    } finally {
+      setIsImporting(false)
+      event.target.value = ''
+    }
+  }
+
   const clearFilters = () => {
     setSearchQuery('')
     setFilterType('All')
@@ -287,6 +687,13 @@ export default function RecordsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={handleImportCsv}
+            />
             <Button
               variant="outline"
               size="sm"
@@ -297,9 +704,20 @@ export default function RecordsPage() {
               Filters
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleOpenImport}
+              disabled={isImporting}
+            >
+              <Upload className="h-4 w-4" />
+              {isImporting ? 'Importing...' : 'Import Record'}
+            </Button>
+            <Button
               className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
               onClick={() => router.push('/registration')}
               size="sm"
+              disabled={isImporting}
             >
               <Plus className="h-4 w-4" />
               New Record
