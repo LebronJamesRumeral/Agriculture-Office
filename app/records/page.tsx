@@ -15,7 +15,12 @@ import {
 } from '@/components/ui/select'
 import { RecordModal } from '@/components/record-modal'
 import { supabase } from '@/lib/supabase'
-import { buildDisplayName, mapRecordRow, type RecordItem, type RecordRow } from '@/lib/records'
+import {
+  formatRecordDate,
+  mapRecordRow,
+  type RecordItem,
+  type RecordRow,
+} from '@/lib/records'
 import { 
   Eye, 
   Trash2, 
@@ -29,15 +34,12 @@ import {
   ChevronRight,
   Users,
   FileText,
-  Calendar,
-  ArrowUpDown,
   CheckCircle2,
   XCircle,
   AlertCircle,
   CreditCard
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import Link from 'next/link'
+import { toast } from 'sonner'
 
 type ImportableRecordRow = Omit<RecordRow, 'id' | 'created_at'>
 
@@ -103,11 +105,14 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   middlename: 'middle_name',
   extname: 'ext_name',
   birthdate: 'birthdate',
+  birthdateddmmyyyy: 'birthdate',
   age: 'age',
   gender: 'gender',
   civilstatus: 'civil_status',
   designation: 'designation',
   unakard: 'una_kard',
+  unakardpassbook: 'una_kard',
+  unakardpassbookno: 'una_kard',
   imc: 'imc',
   umobileaccount: 'u_mobile_account',
   lgucodeno: 'lgu_code_no',
@@ -460,50 +465,47 @@ export default function RecordsPage() {
     const { error } = await supabase.from('records').delete().eq('id', id)
     if (error) {
       console.error('Delete failed', error)
-      alert('Failed to delete record')
+      toast.error('Failed to delete record', {
+        description: error.message || 'Please try again.',
+      })
       return
     }
     setRecords((prev) => prev.filter((record) => record.id !== id))
+    toast.success('Record deleted successfully.')
   }
 
   const handleExportToExcel = () => {
     const headers = [
+      'No',
       'Last Name',
       'First Name',
       'Middle Name',
+      'Ext Name',
+      'Birthdate (DD/MM/YYYY)',
+      'Age',
+      'Gender',
+      'Civil Status',
       'Barangay',
-      'Contact No.',
-      'Type',
-      'ID No.',
-      'Status',
-      'Sector',
-      'Organization',
-      'ID Type',
-      'Crop Type',
-      'Years Experience',
-      'Created At'
+      'Designation',
+      'UNA KARD (PASSBOOK)',
     ]
 
     const csvRows = [
       headers.join(','),
-      ...filteredRecords.map((record: RecordItem) => {
-        const recordType = record.farmerFisherfolkBoth ?? record.type
-        
+      ...filteredRecords.map((record: RecordItem, index: number) => {
         return [
+          `"${index + 1}"`,
           `"${record.lastName || ''}"`,
           `"${record.firstName || ''}"`,
           `"${record.middleName || ''}"`,
+          `"${record.extName || ''}"`,
+          `"${formatRecordDate(record.birthdate) || ''}"`,
+          `"${record.age || ''}"`,
+          `"${record.gender || ''}"`,
+          `"${record.civilStatus || ''}"`,
           `"${record.barangay || ''}"`,
-          `"${record.contactNo || record.contactNumber || ''}"`,
-          `"${recordType}"`,
-          `"${record.idNo || ''}"`,
-          `"${record.status || ''}"`,
-          `"${(record as any).sector || ''}"`,
-          `"${(record as any).organization || ''}"`,
-          `"${(record as any).typeOfId || ''}"`,
-          `"${record.cropType || ''}"`,
-          `"${record.yearsExperience || ''}"`,
-          `"${record.createdAt || ''}"`
+          `"${record.designation || ''}"`,
+          `"${record.unaKard || ''}"`,
         ].join(',')
       })
     ]
@@ -535,7 +537,7 @@ export default function RecordsPage() {
       const parsedRows = parseCsvRows(csvText)
 
       if (parsedRows.length === 0) {
-        alert('No valid rows found in the CSV file.')
+        toast.error('No valid rows found in the CSV file.')
         return
       }
 
@@ -544,7 +546,7 @@ export default function RecordsPage() {
         .filter((row): row is ImportRecordPayload => row !== null)
 
       if (mappedRows.length === 0) {
-        alert('No importable values found. Please check your CSV columns.')
+        toast.error('No importable values found. Please check your CSV columns.')
         return
       }
 
@@ -578,7 +580,9 @@ export default function RecordsPage() {
 
       if (existingError) {
         console.error('Failed to load existing records for import matching', existingError)
-        alert('Import failed. Could not check existing records.')
+        toast.error('Import failed. Could not check existing records.', {
+          description: existingError.message || 'Please try again.',
+        })
         return
       }
 
@@ -613,7 +617,7 @@ export default function RecordsPage() {
       rowsToInsert.push(...noKeyIncoming)
 
       if (rowsToInsert.length === 0 && rowsToUpdate.length === 0) {
-        alert('Import complete. No new or updated records detected.')
+        toast.success('Import complete. No new or updated records detected.')
         return
       }
 
@@ -624,7 +628,9 @@ export default function RecordsPage() {
         const { error: insertError } = await supabase.from('records').insert(chunk)
         if (insertError) {
           console.error('Failed to insert imported records', insertError)
-          alert('Import failed while adding new records. Please verify the CSV data.')
+          toast.error('Import failed while adding new records. Please verify the CSV data.', {
+            description: insertError.message || undefined,
+          })
           return
         }
       }
@@ -637,18 +643,20 @@ export default function RecordsPage() {
 
         if (updateError) {
           console.error('Failed to update imported record', updateError)
-          alert('Import failed while updating existing records. Please retry.')
+          toast.error('Import failed while updating existing records. Please retry.', {
+            description: updateError.message || undefined,
+          })
           return
         }
       }
 
       await loadRecords()
-      alert(
-        `Import complete. Added ${rowsToInsert.length}, updated ${rowsToUpdate.length}, skipped ${skippedUnchanged}.`
-      )
+      toast.success('Import complete.', {
+        description: `Added ${rowsToInsert.length}, updated ${rowsToUpdate.length}, skipped ${skippedUnchanged}.`,
+      })
     } catch (error) {
       console.error('CSV import failed', error)
-      alert('Unable to import CSV. Please try again.')
+      toast.error('Unable to import CSV. Please try again.')
     } finally {
       setIsImporting(false)
       event.target.value = ''
@@ -672,30 +680,6 @@ export default function RecordsPage() {
            filterOrganization !== 'All' || 
            filterID !== 'All'
   }, [searchQuery, filterType, filterStatus, filterSector, filterOrganization, filterID])
-
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'Active':
-        return <CheckCircle2 className="h-3 w-3 text-green-600" />
-      case 'Inactive':
-        return <XCircle className="h-3 w-3 text-red-600" />
-      default:
-        return <AlertCircle className="h-3 w-3 text-slate-600" />
-    }
-  }
-
-  const getTypeColor = (type: string) => {
-    switch(type) {
-      case 'Farmer':
-        return 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20'
-      case 'Fisherfolk':
-        return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20'
-      case 'Both':
-        return 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20'
-      default:
-        return 'bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/20'
-    }
-  }
 
   return (
     <AppLayout>
@@ -952,26 +936,25 @@ export default function RecordsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    <div className="flex items-center gap-1 cursor-pointer hover:text-foreground">
-                      Last Name
-                      <ArrowUpDown className="h-3 w-3" />
-                    </div>
-                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">No</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Last Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">First Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Middle Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Ext Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Birthdate (DD/MM/YYYY)</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Age</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Gender</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Civil Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Barangay</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Contact</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">ID No.</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Designation</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">UNA KARD (PASSBOOK)</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
                 {recordsLoading ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center">
+                    <td colSpan={13} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                         <p className="text-sm text-muted-foreground">Loading records...</p>
@@ -980,7 +963,7 @@ export default function RecordsPage() {
                   </tr>
                 ) : paginatedRecords.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-12 text-center">
+                    <td colSpan={13} className="px-4 py-12 text-center">
                       <div className="flex flex-col items-center gap-2">
                         <FileText className="h-12 w-12 text-muted-foreground/50" />
                         <p className="text-sm text-muted-foreground">No records found</p>
@@ -993,11 +976,14 @@ export default function RecordsPage() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedRecords.map((record: RecordItem) => (
+                  paginatedRecords.map((record: RecordItem, rowIndex: number) => (
                     <tr
                       key={record.id}
                       className="group hover:bg-muted/30 transition-colors"
                     >
+                      <td className="px-4 py-3 text-sm text-foreground">
+                        {(currentPage - 1) * itemsPerPage + rowIndex + 1}
+                      </td>
                       <td className="px-4 py-3 text-sm font-medium text-foreground">
                         {record.lastName || '—'}
                       </td>
@@ -1008,34 +994,28 @@ export default function RecordsPage() {
                         {record.middleName || '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-foreground">
+                        {record.extName || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-foreground">
+                        {formatRecordDate(record.birthdate) || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-foreground">
+                        {record.age || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-foreground">
+                        {record.gender || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-foreground">
+                        {record.civilStatus || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-foreground">
                         {record.barangay || '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-foreground">
-                        {record.contactNo || record.contactNumber || '—'}
+                        {record.designation || '—'}
                       </td>
-                      <td className="px-4 py-3">
-                        <span className={cn(
-                          "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-                          getTypeColor(record.farmerFisherfolkBoth ?? record.type)
-                        )}>
-                          {record.farmerFisherfolkBoth ?? record.type}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-foreground font-mono">
-                        {record.idNo || '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={cn(
-                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                          record.status === 'Active' 
-                            ? 'bg-green-500/10 text-green-700 border-green-500/20'
-                            : record.status === 'Inactive'
-                              ? 'bg-red-500/10 text-red-700 border-red-500/20'
-                              : 'bg-slate-500/10 text-slate-700 border-slate-500/20'
-                        )}>
-                          {getStatusIcon(record.status || '')}
-                          {record.status || '—'}
-                        </span>
+                      <td className="px-4 py-3 text-sm text-foreground">
+                        {record.unaKard || '—'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1 opacity-70 group-hover:opacity-100 transition-opacity">

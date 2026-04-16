@@ -1,5 +1,15 @@
 export type RecordType = 'Farmer' | 'Fisherfolk' | 'Both'
 export type RecordStatus = 'Active' | 'Inactive'
+export type RecordGender = 'Male' | 'Female' | 'Others'
+export type RecordCivilStatus = 'Single' | 'Married' | 'Widowed' | 'Separated'
+
+export const RECORD_GENDER_VALUES: RecordGender[] = ['Male', 'Female', 'Others']
+export const RECORD_CIVIL_STATUS_VALUES: RecordCivilStatus[] = [
+  'Single',
+  'Married',
+  'Widowed',
+  'Separated',
+]
 
 export type RecordRow = {
   id: number
@@ -33,6 +43,9 @@ export type RecordRow = {
   organic: string | null
   four_ps_member: string | null
   ips_member: string | null
+  pwd_member: string | null
+  senior_citizen: string | null
+  solo_parent: string | null
   severely_stunted_children: number | null
   mother_maiden_name: string | null
   household_head: string | null
@@ -62,8 +75,8 @@ export type RecordItem = {
   extName?: string
   birthdate?: string
   age?: string
-  gender?: string
-  civilStatus?: string
+  gender?: RecordGender
+  civilStatus?: RecordCivilStatus
   designation?: string
   unaKard?: string
   imc?: string
@@ -78,6 +91,9 @@ export type RecordItem = {
   organic?: string
   fourPsMember?: string
   ipsMember?: string
+  pwdMember?: string
+  seniorCitizen?: string
+  soloParent?: string
   severelyStuntedChildren?: string
   motherMaidenName?: string
   householdHead?: string
@@ -99,6 +115,40 @@ export function normalizeRecordType(value?: string | null): RecordType {
 export function normalizeRecordStatus(value?: string | null): RecordStatus | null {
   if (value === 'Active' || value === 'Inactive') return value
   return null
+}
+
+export function normalizeRecordGender(value?: string | null): RecordGender | undefined {
+  if (value === 'Male' || value === 'Female' || value === 'Others') return value
+  return undefined
+}
+
+export function normalizeRecordCivilStatus(value?: string | null): RecordCivilStatus | undefined {
+  if (value === 'Single' || value === 'Married' || value === 'Widowed' || value === 'Separated') {
+    return value
+  }
+  return undefined
+}
+
+export function formatRecordDate(value?: string | null): string {
+  if (!value) return ''
+
+  const trimmedValue = value.trim()
+  if (!trimmedValue) return ''
+
+  const isoLikeDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmedValue)
+  if (isoLikeDate) {
+    const [, year, month, day] = isoLikeDate
+    return `${day}/${month}/${year}`
+  }
+
+  const parsedDate = new Date(trimmedValue)
+  if (Number.isNaN(parsedDate.getTime())) return trimmedValue
+
+  const day = String(parsedDate.getDate()).padStart(2, '0')
+  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
+  const year = parsedDate.getFullYear()
+
+  return `${day}/${month}/${year}`
 }
 
 export function buildDisplayName(record: {
@@ -139,8 +189,8 @@ export function mapRecordRow(row: RecordRow): RecordItem {
     extName: row.ext_name ?? undefined,
     birthdate: row.birthdate ?? undefined,
     age: row.age !== null && row.age !== undefined ? String(row.age) : undefined,
-    gender: row.gender ?? undefined,
-    civilStatus: row.civil_status ?? undefined,
+    gender: normalizeRecordGender(row.gender),
+    civilStatus: normalizeRecordCivilStatus(row.civil_status),
     designation: row.designation ?? undefined,
     unaKard: row.una_kard ?? undefined,
     imc: row.imc ?? undefined,
@@ -155,6 +205,9 @@ export function mapRecordRow(row: RecordRow): RecordItem {
     organic: row.organic ?? undefined,
     fourPsMember: row.four_ps_member ?? undefined,
     ipsMember: row.ips_member ?? undefined,
+    pwdMember: row.pwd_member ?? undefined,
+    seniorCitizen: row.senior_citizen ?? undefined,
+    soloParent: row.solo_parent ?? undefined,
     severelyStuntedChildren: row.severely_stunted_children !== null && row.severely_stunted_children !== undefined ? String(row.severely_stunted_children) : undefined,
     motherMaidenName: row.mother_maiden_name ?? undefined,
     householdHead: row.household_head ?? undefined,

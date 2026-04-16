@@ -12,8 +12,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useState } from 'react'
+import { toast } from 'sonner'
 import { 
-  CheckCircle, 
   Building2, 
   Mail, 
   Phone, 
@@ -29,7 +29,6 @@ import {
   Globe,
   HardDrive
 } from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
@@ -59,18 +58,14 @@ export default function SettingsPage() {
     compactView: false
   })
 
-  const [saved, setSaved] = useState(false)
-  const [prefSaved, setPrefSaved] = useState(false)
   const [activeTab, setActiveTab] = useState('general')
 
   const handleSaveOfficeInfo = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    toast.success('Office information saved successfully!')
   }
 
   const handleSavePreferences = () => {
-    setPrefSaved(true)
-    setTimeout(() => setPrefSaved(false), 3000)
+    toast.success('Preferences saved successfully!')
   }
 
   return (
@@ -93,24 +88,6 @@ export default function SettingsPage() {
             </Button>
           </div>
         </div>
-
-        {/* Success Messages */}
-        {saved && (
-          <Alert className="border-green-500/50 bg-gradient-to-r from-green-500/10 to-green-500/5">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800 dark:text-green-200">
-              Office information saved successfully!
-            </AlertDescription>
-          </Alert>
-        )}
-        {prefSaved && (
-          <Alert className="border-green-500/50 bg-gradient-to-r from-green-500/10 to-green-500/5">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800 dark:text-green-200">
-              Preferences saved successfully!
-            </AlertDescription>
-          </Alert>
-        )}
 
         {/* Settings Tabs */}
         <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab} className="space-y-4">

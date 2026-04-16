@@ -68,6 +68,7 @@ interface FormData {
   typeOfId: string
   idNo: string
   farmerFisherfolkBoth: string
+  yearsExperience: string
   farmType: string
   cropAreaOrHeads: string
   cropName: string
@@ -143,6 +144,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
     typeOfId: '',
     idNo: '',
     farmerFisherfolkBoth: '',
+    yearsExperience: '',
     farmType: '',
     cropAreaOrHeads: '',
     cropName: '',
@@ -900,7 +902,20 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
       case 5:
         return (
           <div className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="yearsExperience">Years of Experience</Label>
+                <Input
+                  id="yearsExperience"
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Enter years"
+                  value={formData.yearsExperience}
+                  onChange={(e) => handleChange('yearsExperience', e.target.value)}
+                  className="border-border/50 bg-background/50"
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="farmType">Farm Type</Label>
                 <Input

@@ -46,6 +46,9 @@ interface FormData {
   organic: string
   fourPsMember: string
   ipsMember: string
+  pwdMember: string
+  seniorCitizen: string
+  soloParent: string
   severelyStuntedChildren: string
   motherMaidenName: string
   householdHead: string
@@ -53,6 +56,7 @@ interface FormData {
   typeOfId: string
   idNo: string
   farmerFisherfolkBoth: string
+  yearsExperience: string
   farmType: string
   cropAreaOrHeads: string
   cropName: string
@@ -81,7 +85,7 @@ export default function RegistrationPage() {
         barangay: data.barangay || null,
         contact_number: data.contactNo || null,
         crop_type: data.cropName || null,
-        years_experience: null,
+        years_experience: data.yearsExperience ? Number(data.yearsExperience) : null,
         status: 'Active',
         last_name: data.lastName || null,
         first_name: data.firstName || null,
@@ -105,6 +109,9 @@ export default function RegistrationPage() {
         organic: data.organic || null,
         four_ps_member: data.fourPsMember || null,
         ips_member: data.ipsMember || null,
+        pwd_member: data.pwdMember || null,
+        senior_citizen: data.seniorCitizen || null,
+        solo_parent: data.soloParent || null,
         severely_stunted_children: data.severelyStuntedChildren
           ? Number(data.severelyStuntedChildren)
           : null,

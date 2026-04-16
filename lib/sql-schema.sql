@@ -31,6 +31,9 @@ create table if not exists public.records (
   organic text,
   four_ps_member text,
   ips_member text,
+  pwd_member text,
+  senior_citizen text,
+  solo_parent text,
   severely_stunted_children integer,
   mother_maiden_name text,
   household_head text,
@@ -43,6 +46,11 @@ create table if not exists public.records (
   crop_name text,
   remarks text
 );
+
+-- Keep existing databases in sync with the latest records shape
+alter table public.records add column if not exists pwd_member text;
+alter table public.records add column if not exists senior_citizen text;
+alter table public.records add column if not exists solo_parent text;
 
 -- Notifications table
 create table if not exists public.notifications (
@@ -181,6 +189,9 @@ insert into public.records (
   organic,
   four_ps_member,
   ips_member,
+  pwd_member,
+  senior_citizen,
+  solo_parent,
   severely_stunted_children,
   mother_maiden_name,
   household_head,
@@ -225,6 +236,9 @@ select
   case when (idx % 2) = 0 then 'Yes' else 'No' end,
   case when (idx % 4) = 0 then 'Yes' else 'No' end,
   case when (idx % 5) = 0 then 'Yes' else 'No' end,
+  case when (idx % 6) = 0 then 'Yes' else 'No' end,
+  case when age >= 60 then 'Yes' else 'No' end,
+  case when (idx % 7) = 0 then 'Yes' else 'No' end,
   case when (id % 3) = 0 then 1 else 0 end,
   case when (idx % 2) = 0 then 'Santos' else 'Reyes' end,
   case when (idx % 2) = 0 then 'Yes' else 'No' end,
@@ -292,6 +306,23 @@ create policy "Allow public read records" on public.records
 create policy "Allow public insert records" on public.records
   for insert
   with check (true);
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'records'
+      and policyname = 'Allow public update records'
+  ) then
+    create policy "Allow public update records" on public.records
+      for update
+      using (true)
+      with check (true);
+  end if;
+end
+$$;
 
 create policy "Allow public delete records" on public.records
   for delete
