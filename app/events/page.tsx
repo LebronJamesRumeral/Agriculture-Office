@@ -43,7 +43,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog'
 import * as React from 'react'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { supabase } from '@/lib/supabase'
 import { buildDisplayName, mapRecordRow, type RecordItem, type RecordRow } from '@/lib/records'
 import { cn } from '@/lib/utils'
@@ -492,7 +492,7 @@ export default function EventsPage() {
     })
   }
 
-  function exportAttendees(event: EventItem) {
+  async function exportAttendees(event: EventItem) {
     const rows = (attendeesByEvent[event.id] ?? []).map((a) => ({
       ID: a.id,
       Name: a.name,
@@ -506,11 +506,26 @@ export default function EventsPage() {
       Time: event.time,
       Venue: event.venue,
     }))
-    const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(rows)
-    XLSX.utils.book_append_sheet(wb, ws, 'Attendees')
-    const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-    const blob = new Blob([out], { type: 'application/octet-stream' })
+
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('Attendees')
+
+    if (rows.length > 0) {
+      worksheet.columns = Object.keys(rows[0]).map((key) => ({
+        header: key,
+        key,
+        width: 20,
+      }))
+      rows.forEach((row) => {
+        worksheet.addRow(row)
+      })
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], {
+      type:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

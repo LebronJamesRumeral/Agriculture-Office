@@ -14,6 +14,7 @@ import { X, Edit2, QrCode, FileSpreadsheet } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { RecordItem } from '@/lib/records'
+import ExcelJS from 'exceljs'
 
 interface RecordModalProps {
   record: RecordItem | null
@@ -80,7 +81,6 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
 
   const handleExportExcel = async () => {
     try {
-      const XLSX = await import('xlsx')
       const fullName = [derived.lastName, derived.firstName, derived.middleName]
         .filter((value) => value && value.trim().length > 0)
         .join('_')
@@ -130,10 +130,34 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
         Status: current.status ?? '',
         RegisteredOn: current.createdAt,
       }
-      const ws = XLSX.utils.json_to_sheet([row])
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, ws, 'Record')
-      XLSX.writeFile(wb, `${safeName}.xlsx`)
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('Record')
+
+      const entries = Object.entries(row)
+      worksheet.columns = [
+        { header: 'Field', key: 'field', width: 32 },
+        { header: 'Value', key: 'value', width: 50 },
+      ]
+      entries.forEach(([key, value]) => {
+        worksheet.addRow({
+          field: key,
+          value: value == null ? '' : String(value),
+        })
+      })
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], {
+        type:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${safeName}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Excel export failed', err)
     }
