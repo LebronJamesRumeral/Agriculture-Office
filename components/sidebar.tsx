@@ -65,7 +65,7 @@ const navItems = [
 
 export function Sidebar({ collapsed, setCollapsed }: { 
   collapsed: boolean, 
-  setCollapsed: (collapsed: boolean) => void 
+  setCollapsed?: (collapsed: boolean) => void 
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -165,7 +165,7 @@ export function Sidebar({ collapsed, setCollapsed }: {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => setCollapsed?.(!collapsed)}
             className="hidden h-6 w-6 shrink-0 rounded-md border border-border/50 bg-background/50 hover:bg-background md:inline-flex" // Smaller button
           >
             {collapsed ? (

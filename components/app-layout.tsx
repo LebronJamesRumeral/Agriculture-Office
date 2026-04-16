@@ -11,7 +11,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-      <Sidebar collapsed={isSidebarCollapsed} />
+      <Sidebar
+        collapsed={isSidebarCollapsed}
+        setCollapsed={(collapsed) => setIsSidebarCollapsed(collapsed)}
+      />
       <div
         className={`relative min-h-screen transition-[margin] duration-300 ease-in-out ${
           isSidebarCollapsed ? 'md:ml-20' : 'md:ml-64'

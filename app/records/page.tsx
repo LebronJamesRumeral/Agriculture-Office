@@ -345,6 +345,30 @@ export default function RecordsPage() {
     void loadRecords()
   }, [])
 
+  const monthlyStats = useMemo(() => {
+    const now = new Date()
+    const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const firstDayNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+
+    const thisMonthStartMs = firstDayThisMonth.getTime()
+    const nextMonthStartMs = firstDayNextMonth.getTime()
+    const lastMonthStartMs = firstDayLastMonth.getTime()
+
+    let thisMonth = 0
+    let lastMonth = 0
+
+    for (const r of records) {
+      const ts = new Date(r.createdAt).getTime()
+      if (Number.isNaN(ts)) continue
+
+      if (ts >= thisMonthStartMs && ts < nextMonthStartMs) thisMonth += 1
+      if (ts >= lastMonthStartMs && ts < thisMonthStartMs) lastMonth += 1
+    }
+
+    return { this_month: thisMonth, last_month: lastMonth }
+  }, [records])
+
   // Get unique values for filter options
   const filterOptions = useMemo(() => {
     const sectors = new Set<string>()
@@ -778,7 +802,7 @@ export default function RecordsPage() {
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground">This Month</p>
-                <p className="text-xl font-bold text-foreground">+12</p>
+                <p className="text-xl font-bold text-foreground">+{monthlyStats.this_month}</p>
               </div>
             </div>
           </Card>

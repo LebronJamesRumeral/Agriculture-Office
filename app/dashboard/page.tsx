@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { AppLayout } from '@/components/app-layout'
 import { Card } from '@/components/ui/card'
 import { 
@@ -58,11 +58,15 @@ export default function DashboardPage() {
     growth_rate: 0
   })
   const [loading, setLoading] = useState(true)
+  const isRefreshingRef = useRef(false)
 
   useEffect(() => {
     let mounted = true
+    let refreshTimeout: number | undefined
+    let isInitialLoad = true
+
     const loadMetrics = async () => {
-      setLoading(true)
+      if (isInitialLoad) setLoading(true)
       
       // Fetch main analytics
       const { data: analyticsData, error: analyticsError } = await supabase
@@ -85,14 +89,14 @@ export default function DashboardPage() {
       const firstDayNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
 
       // Get this month's registrations
-      const { data: thisMonthData, error: thisMonthError } = await supabase
+      const { count: thisMonthCount, error: thisMonthError } = await supabase
         .from('records')
         .select('id', { count: 'exact', head: true })
         .gte('created_at', firstDayThisMonth)
         .lt('created_at', firstDayNextMonth)
 
       // Get last month's registrations
-      const { data: lastMonthData, error: lastMonthError } = await supabase
+      const { count: lastMonthCount, error: lastMonthError } = await supabase
         .from('records')
         .select('id', { count: 'exact', head: true })
         .gte('created_at', firstDayLastMonth)
@@ -100,24 +104,51 @@ export default function DashboardPage() {
 
       if (!mounted) return
 
-      const thisMonthCount = thisMonthData?.length || 0
-      const lastMonthCount = lastMonthData?.length || 0
-      const growthRate = lastMonthCount > 0 
-        ? ((thisMonthCount - lastMonthCount) / lastMonthCount) * 100 
+      const safeThisMonthCount = thisMonthCount ?? 0
+      const safeLastMonthCount = lastMonthCount ?? 0
+      const growthRate = safeLastMonthCount > 0
+        ? ((safeThisMonthCount - safeLastMonthCount) / safeLastMonthCount) * 100 
         : 0
 
       setMonthlyStats({
-        this_month: thisMonthCount,
-        last_month: lastMonthCount,
+        this_month: safeThisMonthCount,
+        last_month: safeLastMonthCount,
         growth_rate: growthRate
       })
 
-      setLoading(false)
+      if (isInitialLoad) setLoading(false)
+      isInitialLoad = false
     }
 
-    loadMetrics()
+    const triggerRefresh = () => {
+      if (!mounted) return
+      if (refreshTimeout) window.clearTimeout(refreshTimeout)
+      refreshTimeout = window.setTimeout(() => {
+        if (!mounted) return
+        if (isRefreshingRef.current) return
+        isRefreshingRef.current = true
+
+        void loadMetrics().finally(() => {
+          isRefreshingRef.current = false
+        })
+      }, 250)
+    }
+
+    void loadMetrics()
+
+    const channel = supabase
+      .channel('dashboard-monthly-records')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'records' },
+        () => triggerRefresh()
+      )
+      .subscribe()
+
     return () => {
       mounted = false
+      if (refreshTimeout) window.clearTimeout(refreshTimeout)
+      supabase.removeChannel(channel)
     }
   }, [])
 
