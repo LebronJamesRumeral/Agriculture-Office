@@ -72,6 +72,7 @@ interface FormData {
   cropAreaOrHeads: string
   cropName: string
   remarks: string
+  deceased: string
 }
 
 const steps = [
@@ -147,6 +148,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
     cropAreaOrHeads: '',
     cropName: '',
     remarks: '',
+    deceased: '',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})

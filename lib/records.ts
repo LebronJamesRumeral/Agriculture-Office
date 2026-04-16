@@ -44,6 +44,7 @@ export type RecordRow = {
   crop_area_or_heads: string | null
   crop_name: string | null
   remarks: string | null
+  deceased: string | null
 }
 
 export type RecordItem = {
@@ -89,6 +90,7 @@ export type RecordItem = {
   cropAreaOrHeads?: string
   cropName?: string
   remarks?: string
+  deceased?: string
 }
 
 export function normalizeRecordType(value?: string | null): RecordType {
@@ -166,6 +168,7 @@ export function mapRecordRow(row: RecordRow): RecordItem {
     cropAreaOrHeads: row.crop_area_or_heads ?? undefined,
     cropName: row.crop_name ?? undefined,
     remarks: row.remarks ?? undefined,
+    deceased: (row as any).deceased ?? (row as any).is_deceased ?? undefined,
   }
 }
 

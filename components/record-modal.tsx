@@ -124,6 +124,7 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
         CropAreaOrHeads: current.cropAreaOrHeads ?? '',
         CropName: derived.cropName,
         Remarks: current.remarks ?? '',
+        Deceased: current.deceased ?? '',
         Type: current.type,
         CropFishType: current.cropType,
         YearsExperience: current.yearsExperience,
@@ -280,6 +281,7 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
               title: 'System Details',
               fields: [
                 { label: 'Status', key: 'status' },
+                { label: 'Deceased', key: 'deceased' },
                 { label: 'Registered On', key: 'createdAt' },
                 { label: 'Remarks', key: 'remarks', multiline: true },
               ],
@@ -527,7 +529,7 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
                     )
                   }
 
-                  if (['organic', 'fourPsMember', 'ipsMember', 'pwdMember', 'seniorCitizen', 'soloParent', 'householdHead'].includes(field.key)) {
+                  if (['organic', 'fourPsMember', 'ipsMember', 'pwdMember', 'seniorCitizen', 'soloParent', 'householdHead', 'deceased'].includes(field.key)) {
                     return (
                       <div key={field.label} className="space-y-1">
                         <label className="text-xs font-semibold text-primary">
