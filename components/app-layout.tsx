@@ -4,13 +4,12 @@ import React, { useState } from "react"
 
 import { Sidebar } from '@/components/sidebar'
 import { TopNav } from '@/components/top-nav'
-import { ThemeProvider } from 'next-themes'
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+    <>
       <Sidebar
         collapsed={isSidebarCollapsed}
         setCollapsed={(collapsed) => setIsSidebarCollapsed(collapsed)}
@@ -37,6 +36,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="mx-auto w-full max-w-[1400px]">{children}</div>
         </main>
       </div>
-    </ThemeProvider>
+    </>
   )
 }

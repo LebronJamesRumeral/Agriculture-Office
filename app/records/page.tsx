@@ -316,6 +316,7 @@ export default function RecordsPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [records, setRecords] = useState<RecordItem[]>([])
   const [recordsLoading, setRecordsLoading] = useState(true)
+  const [totalRecords, setTotalRecords] = useState<number>(0)
   const [isImporting, setIsImporting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<'All' | 'Farmer' | 'Fisherfolk' | 'Both'>('All')
@@ -332,18 +333,55 @@ export default function RecordsPage() {
 
   const loadRecords = async () => {
     setRecordsLoading(true)
-    const { data, error } = await supabase
-      .from('records')
-      .select('*')
-      .order('id', { ascending: false })
-    if (error) {
-      console.error('Failed to load records', error)
+    try {
+      // Get exact total count without fetching data
+      const { count, error: countError } = await supabase
+        .from('records')
+        .select('id', { head: true, count: 'exact' })
+
+      if (countError) {
+        console.error('Failed to get records count', countError)
+      }
+      setTotalRecords(count ?? 0)
+
+      // Supabase / PostgREST can impose a default max page size (commonly 1000).
+      // To ensure we retrieve the entire table regardless of server limits,
+      // fetch in batches using .range() and concatenate until no more rows.
+      const batchSize = 1000
+      let from = 0
+      const allRows: RecordRow[] = []
+
+      while (true) {
+        const to = from + batchSize - 1
+        const { data, error } = await supabase
+          .from('records')
+          .select('*')
+          .order('id', { ascending: false })
+          .range(from, to)
+
+        if (error) {
+          console.error('Failed to load records batch', error)
+          setRecords([])
+          setRecordsLoading(false)
+          return
+        }
+
+        if (!data || data.length === 0) break
+
+        allRows.push(...(data as RecordRow[]))
+
+        if (data.length < batchSize) break
+        from += batchSize
+      }
+
+      setRecords(allRows.map((row) => mapRecordRow(row as RecordRow)))
+    } catch (err) {
+      console.error('Failed to load records', err)
       setRecords([])
+      setTotalRecords(0)
+    } finally {
       setRecordsLoading(false)
-      return
     }
-    setRecords((data ?? []).map((row) => mapRecordRow(row as RecordRow)))
-    setRecordsLoading(false)
   }
 
   useEffect(() => {
@@ -743,7 +781,7 @@ export default function RecordsPage() {
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Total Records</p>
-                <p className="text-xl font-bold text-foreground">{records.length}</p>
+                <p className="text-xl font-bold text-foreground">{totalRecords.toLocaleString()}</p>
               </div>
             </div>
           </Card>
@@ -913,7 +951,7 @@ export default function RecordsPage() {
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <p className="text-sm text-muted-foreground">
-                  {recordsLoading ? 'Loading...' : `Showing ${paginatedRecords.length} of ${filteredRecords.length} records`}
+                  {recordsLoading ? 'Loading...' : `Showing ${paginatedRecords.length} of ${hasActiveFilters ? filteredRecords.length : totalRecords} records`}
                 </p>
                 {hasActiveFilters && (
                   <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 px-2 text-xs">
