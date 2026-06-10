@@ -886,33 +886,6 @@ export default function RecordsPage() {
         return
       }
 
-      const dedupedIncoming = new Map<string, ImportRecordPayload>()
-      const noKeyIncoming: ImportRecordPayload[] = []
-
-      mappedRows.forEach((row) => {
-        const key = buildImportKey({
-          id_no: (row.id_no as string | null | undefined) ?? null,
-          lgu_code_no: (row.lgu_code_no as string | null | undefined) ?? null,
-          fishr_no: (row.fishr_no as string | null | undefined) ?? null,
-          first_name: (row.first_name as string | null | undefined) ?? null,
-          last_name: (row.last_name as string | null | undefined) ?? null,
-          middle_name: (row.middle_name as string | null | undefined) ?? null,
-          ext_name: (row.ext_name as string | null | undefined) ?? null,
-          birthdate: (row.birthdate as string | null | undefined) ?? null,
-          barangay: (row.barangay as string | null | undefined) ?? null,
-          contact_no: (row.contact_no as string | null | undefined) ?? null,
-          contact_number: (row.contact_number as string | null | undefined) ?? null,
-          name: (row.name as string | null | undefined) ?? null,
-        })
-
-        if (!key) {
-          noKeyIncoming.push(row)
-          return
-        }
-
-        dedupedIncoming.set(key, row)
-      })
-
       const existingData: ExistingImportRecord[] = []
       const batchSize = 1000
       let from = 0
@@ -939,36 +912,207 @@ export default function RecordsPage() {
         from += batchSize
       }
 
-      const existingMap = new Map<string, ExistingImportRecord>()
-      ;(existingData as ExistingImportRecord[]).forEach((record) => {
-        const key = buildImportKey(record)
-        if (key && !existingMap.has(key)) {
-          existingMap.set(key, record)
+      type TrackerRecord = {
+        id: number | undefined
+        payload: ImportRecordPayload
+      }
+
+      const trackerList: TrackerRecord[] = existingData.map((rec) => ({
+        id: rec.id,
+        payload: {
+          id_no: rec.id_no,
+          lgu_code_no: rec.lgu_code_no,
+          fishr_no: rec.fishr_no,
+          first_name: rec.first_name,
+          last_name: rec.last_name,
+          middle_name: rec.middle_name,
+          ext_name: rec.ext_name,
+          birthdate: rec.birthdate,
+          barangay: rec.barangay,
+          contact_no: rec.contact_no,
+          contact_number: rec.contact_number,
+          name: rec.name,
+          type: rec.type,
+          crop_type: rec.crop_type,
+          years_experience: rec.years_experience,
+          status: rec.status,
+          age: rec.age,
+          gender: rec.gender,
+          civil_status: rec.civil_status,
+          designation: rec.designation,
+          una_kard: rec.una_kard,
+          imc: rec.imc,
+          u_mobile_account: rec.u_mobile_account,
+          ffrs_system_generated_no: rec.ffrs_system_generated_no,
+          ffrs_date_encoded: rec.ffrs_date_encoded,
+          association: rec.association,
+          family_members: rec.family_members,
+          organic: rec.organic,
+          four_ps_member: rec.four_ps_member,
+          ips_member: rec.ips_member,
+          pwd_member: rec.pwd_member,
+          senior_citizen: rec.senior_citizen,
+          solo_parent: rec.solo_parent,
+          severely_stunted_children: rec.severely_stunted_children,
+          mother_maiden_name: rec.mother_maiden_name,
+          household_head: rec.household_head,
+          household_head_specify: rec.household_head_specify,
+          type_of_id: rec.type_of_id,
+          farmer_fisherfolk_both: rec.farmer_fisherfolk_both,
+          farm_type: rec.farm_type,
+          crop_area_or_heads: rec.crop_area_or_heads,
+          crop_name: rec.crop_name,
+          remarks: rec.remarks,
+        },
+      }))
+
+      const lookupById = new Map<string, TrackerRecord>()
+      const lookupByLgu = new Map<string, TrackerRecord>()
+      const lookupByFishr = new Map<string, TrackerRecord>()
+      const lookupByPerson = new Map<string, TrackerRecord>()
+      const lookupByFallback = new Map<string, TrackerRecord>()
+      const lookupByNameBrgy = new Map<string, TrackerRecord>()
+      const lookupByName = new Map<string, TrackerRecord>()
+
+      const registerLookup = (record: TrackerRecord) => {
+        const payload = record.payload
+
+        const idNo = normalizeKeyValue(payload.id_no)
+        if (idNo && !lookupById.has(idNo)) lookupById.set(idNo, record)
+
+        const lguCode = normalizeKeyValue(payload.lgu_code_no)
+        if (lguCode && !lookupByLgu.has(lguCode)) lookupByLgu.set(lguCode, record)
+
+        const fishrNo = normalizeKeyValue(payload.fishr_no)
+        if (fishrNo && !lookupByFishr.has(fishrNo)) lookupByFishr.set(fishrNo, record)
+
+        const nameKey = getUnifiedNormalizedName(payload)
+        const birthdate = normalizeKeyValue(payload.birthdate)
+        if (nameKey && birthdate) {
+          const personKey = `${nameKey}|${birthdate}`
+          if (!lookupByPerson.has(personKey)) lookupByPerson.set(personKey, record)
         }
-      })
+
+        const barangay = normalizeKeyValue(payload.barangay)
+        const contact = normalizeKeyValue(payload.contact_no ?? payload.contact_number)
+        if (nameKey && barangay && contact) {
+          const fallbackKey = `${nameKey}|${barangay}|${contact}`
+          if (!lookupByFallback.has(fallbackKey)) lookupByFallback.set(fallbackKey, record)
+        }
+
+        if (nameKey && barangay) {
+          const nameBrgyKey = `${nameKey}|${barangay}`
+          if (!lookupByNameBrgy.has(nameBrgyKey)) lookupByNameBrgy.set(nameBrgyKey, record)
+        }
+
+        if (nameKey && !lookupByName.has(nameKey)) {
+          lookupByName.set(nameKey, record)
+        }
+      }
+
+      trackerList.forEach(registerLookup)
+
+      const findMatchingRecord = (incoming: ImportRecordPayload): TrackerRecord | undefined => {
+        const idNo = normalizeKeyValue(incoming.id_no)
+        if (idNo && lookupById.has(idNo)) return lookupById.get(idNo)
+
+        const lguCode = normalizeKeyValue(incoming.lgu_code_no)
+        if (lguCode && lookupByLgu.has(lguCode)) return lookupByLgu.get(lguCode)
+
+        const fishrNo = normalizeKeyValue(incoming.fishr_no)
+        if (fishrNo && lookupByFishr.has(fishrNo)) return lookupByFishr.get(fishrNo)
+
+        const nameKey = getUnifiedNormalizedName(incoming)
+        const birthdate = normalizeKeyValue(incoming.birthdate)
+        if (nameKey && birthdate) {
+          const personKey = `${nameKey}|${birthdate}`
+          if (lookupByPerson.has(personKey)) return lookupByPerson.get(personKey)
+        }
+
+        const barangay = normalizeKeyValue(incoming.barangay)
+        const contact = normalizeKeyValue(incoming.contact_no ?? incoming.contact_number)
+        if (nameKey && barangay && contact) {
+          const fallbackKey = `${nameKey}|${barangay}|${contact}`
+          if (lookupByFallback.has(fallbackKey)) return lookupByFallback.get(fallbackKey)
+        }
+
+        if (nameKey && barangay) {
+          const nameBrgyKey = `${nameKey}|${barangay}`
+          if (lookupByNameBrgy.has(nameBrgyKey)) return lookupByNameBrgy.get(nameBrgyKey)
+        }
+
+        if (nameKey && lookupByName.has(nameKey)) {
+          return lookupByName.get(nameKey)
+        }
+
+        return undefined
+      }
 
       const rowsToInsert: ImportRecordPayload[] = []
-      const rowsToUpdate: Array<{ id: number; payload: ImportRecordPayload }> = []
+      const updatesMap = new Map<number, ImportRecordPayload>()
       let skippedUnchanged = 0
 
-      dedupedIncoming.forEach((incoming, key) => {
-        const existing = existingMap.get(key)
+      mappedRows.forEach((incoming) => {
+        const matchedRecord = findMatchingRecord(incoming)
 
-        if (!existing) {
-          rowsToInsert.push(incoming)
+        if (!matchedRecord) {
+          const newRecord: TrackerRecord = {
+            id: undefined,
+            payload: { ...incoming },
+          }
+          rowsToInsert.push(newRecord.payload)
+          registerLookup(newRecord)
           return
         }
 
-        const additionalDataPayload = getNewAdditionalData(existing, incoming)
-        if (!additionalDataPayload) {
-          skippedUnchanged += 1
-          return
-        }
+        if (matchedRecord.id !== undefined) {
+          const additionalDataPayload = getNewAdditionalData(
+            matchedRecord.payload as unknown as ExistingImportRecord,
+            incoming
+          )
 
-        rowsToUpdate.push({ id: existing.id, payload: additionalDataPayload })
+          if (!additionalDataPayload) {
+            skippedUnchanged += 1
+            return
+          }
+
+          Object.assign(matchedRecord.payload, additionalDataPayload)
+          registerLookup(matchedRecord)
+
+          const existingUpdate = updatesMap.get(matchedRecord.id)
+          if (existingUpdate) {
+            Object.assign(existingUpdate, additionalDataPayload)
+          } else {
+            updatesMap.set(matchedRecord.id, { ...additionalDataPayload })
+          }
+        } else {
+          let hasMergedAdditional = false
+          Object.entries(incoming).forEach(([key, value]) => {
+            if (key === 'id') return
+            const normalizedIncoming = normalizeComparableValue(value)
+            if (normalizedIncoming === '') return
+
+            const existingValue = (matchedRecord.payload as Record<string, unknown>)[key]
+            const normalizedExisting = normalizeComparableValue(existingValue)
+
+            if (normalizedIncoming !== normalizedExisting) {
+              ;(matchedRecord.payload as Record<string, unknown>)[key] = value
+              hasMergedAdditional = true
+            }
+          })
+
+          if (hasMergedAdditional) {
+            registerLookup(matchedRecord)
+          } else {
+            skippedUnchanged += 1
+          }
+        }
       })
 
-      rowsToInsert.push(...noKeyIncoming)
+      const rowsToUpdate: Array<{ id: number; payload: ImportRecordPayload }> = []
+      updatesMap.forEach((payload, id) => {
+        rowsToUpdate.push({ id, payload })
+      })
 
       if (rowsToInsert.length === 0 && rowsToUpdate.length === 0) {
         toast.success('Import complete. No new or updated records detected.')
