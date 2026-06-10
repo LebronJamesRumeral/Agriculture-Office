@@ -277,9 +277,9 @@ const normalizeKeyValue = (value?: string | null) => (value ?? '').trim().toLowe
 
 const normalizeComparableValue = (value: unknown) => {
   if (value === null || value === undefined) return ''
-  if (typeof value === 'string') return value.trim()
-  if (typeof value === 'number') return String(value)
-  return String(value)
+  const str = String(value).trim().toLowerCase()
+  if (str === 'n/a' || str === 'none' || str === '-' || str === '—' || str === 'na') return ''
+  return str
 }
 
 const parseCsvLine = (line: string): string[] => {
@@ -479,16 +479,44 @@ const mapCsvRowToPayload = (rawRow: Record<string, string>): ImportRecordPayload
   return hasContent ? payload : null
 }
 
+const cleanNameString = (str: string | null | undefined): string => {
+  if (!str) return ''
+  const cleaned = str.trim().toLowerCase().replace(/\s+/g, ' ')
+  if (cleaned === 'n/a' || cleaned === 'none' || cleaned === '-' || cleaned === '—' || cleaned === 'na') {
+    return ''
+  }
+  return cleaned
+}
+
+const getUnifiedNormalizedName = (row: {
+  first_name?: string | null
+  last_name?: string | null
+  middle_name?: string | null
+  ext_name?: string | null
+  name?: string | null
+}): string => {
+  const nameVal = cleanNameString(row.name)
+  if (nameVal) return nameVal
+
+  const parts = [row.first_name, row.middle_name, row.last_name, row.ext_name]
+    .map(cleanNameString)
+    .filter(Boolean)
+  return parts.join(' ').replace(/\s+/g, ' ')
+}
+
 const buildImportKey = (row: {
   id_no?: string | null
   lgu_code_no?: string | null
   fishr_no?: string | null
   first_name?: string | null
   last_name?: string | null
+  middle_name?: string | null
+  ext_name?: string | null
   birthdate?: string | null
   barangay?: string | null
   contact_no?: string | null
   contact_number?: string | null
+  name?: string | null
 }) => {
   const idNo = normalizeKeyValue(row.id_no)
   if (idNo) return `id:${idNo}`
@@ -499,26 +527,51 @@ const buildImportKey = (row: {
   const fishrNo = normalizeKeyValue(row.fishr_no)
   if (fishrNo) return `fishr:${fishrNo}`
 
-  const firstName = normalizeKeyValue(row.first_name)
-  const lastName = normalizeKeyValue(row.last_name)
+  const nameKey = getUnifiedNormalizedName(row)
+
   const birthdate = normalizeKeyValue(row.birthdate)
-  if (firstName && lastName && birthdate) return `person:${firstName}|${lastName}|${birthdate}`
+  if (nameKey && birthdate) return `person:${nameKey}|${birthdate}`
 
   const barangay = normalizeKeyValue(row.barangay)
   const contact = normalizeKeyValue(row.contact_no ?? row.contact_number)
-  if (firstName && lastName && barangay && contact) {
-    return `fallback:${firstName}|${lastName}|${barangay}|${contact}`
+  if (nameKey && barangay && contact) {
+    return `fallback:${nameKey}|${barangay}|${contact}`
+  }
+
+  if (nameKey && barangay) {
+    return `name-brgy:${nameKey}|${barangay}`
+  }
+
+  if (nameKey) {
+    return `name-only:${nameKey}`
   }
 
   return null
 }
 
-const hasChanges = (existing: ExistingImportRecord, incoming: ImportRecordPayload) => {
-  return Object.entries(incoming).some(([key, value]) => {
-    if (key === 'id') return false
+const getNewAdditionalData = (
+  existing: ExistingImportRecord,
+  incoming: ImportRecordPayload
+): ImportRecordPayload | null => {
+  const updatePayload: ImportRecordPayload = {}
+  let hasAdditional = false
+
+  Object.entries(incoming).forEach(([key, value]) => {
+    if (key === 'id') return
+
+    const normalizedIncoming = normalizeComparableValue(value)
+    if (normalizedIncoming === '') return
+
     const existingValue = (existing as unknown as Record<string, unknown>)[key]
-    return normalizeComparableValue(existingValue) !== normalizeComparableValue(value)
+    const normalizedExisting = normalizeComparableValue(existingValue)
+
+    if (normalizedIncoming !== normalizedExisting) {
+      ;(updatePayload as Record<string, unknown>)[key] = value
+      hasAdditional = true
+    }
   })
+
+  return hasAdditional ? updatePayload : null
 }
 
 export default function RecordsPage() {
@@ -843,10 +896,13 @@ export default function RecordsPage() {
           fishr_no: (row.fishr_no as string | null | undefined) ?? null,
           first_name: (row.first_name as string | null | undefined) ?? null,
           last_name: (row.last_name as string | null | undefined) ?? null,
+          middle_name: (row.middle_name as string | null | undefined) ?? null,
+          ext_name: (row.ext_name as string | null | undefined) ?? null,
           birthdate: (row.birthdate as string | null | undefined) ?? null,
           barangay: (row.barangay as string | null | undefined) ?? null,
           contact_no: (row.contact_no as string | null | undefined) ?? null,
           contact_number: (row.contact_number as string | null | undefined) ?? null,
+          name: (row.name as string | null | undefined) ?? null,
         })
 
         if (!key) {
@@ -857,16 +913,30 @@ export default function RecordsPage() {
         dedupedIncoming.set(key, row)
       })
 
-      const { data: existingData, error: existingError } = await supabase
-        .from('records')
-        .select('id,id_no,lgu_code_no,fishr_no,first_name,last_name,birthdate,barangay,contact_no,contact_number,name,type,crop_type,years_experience,status,middle_name,ext_name,age,gender,civil_status,designation,una_kard,imc,u_mobile_account,ffrs_system_generated_no,ffrs_date_encoded,association,family_members,organic,four_ps_member,ips_member,pwd_member,senior_citizen,solo_parent,severely_stunted_children,mother_maiden_name,household_head,household_head_specify,type_of_id,farmer_fisherfolk_both,farm_type,crop_area_or_heads,crop_name,remarks')
+      const existingData: ExistingImportRecord[] = []
+      const batchSize = 1000
+      let from = 0
 
-      if (existingError) {
-        console.error('Failed to load existing records for import matching', existingError)
-        toast.error('Import failed. Could not check existing records.', {
-          description: existingError.message || 'Please try again.',
-        })
-        return
+      while (true) {
+        const to = from + batchSize - 1
+        const { data, error: existingError } = await supabase
+          .from('records')
+          .select('id,id_no,lgu_code_no,fishr_no,first_name,last_name,birthdate,barangay,contact_no,contact_number,name,type,crop_type,years_experience,status,middle_name,ext_name,age,gender,civil_status,designation,una_kard,imc,u_mobile_account,ffrs_system_generated_no,ffrs_date_encoded,association,family_members,organic,four_ps_member,ips_member,pwd_member,senior_citizen,solo_parent,severely_stunted_children,mother_maiden_name,household_head,household_head_specify,type_of_id,farmer_fisherfolk_both,farm_type,crop_area_or_heads,crop_name,remarks')
+          .range(from, to)
+
+        if (existingError) {
+          console.error('Failed to load existing records for import matching', existingError)
+          toast.error('Import failed. Could not check existing records.', {
+            description: existingError.message || 'Please try again.',
+          })
+          return
+        }
+
+        if (!data || data.length === 0) break
+        existingData.push(...(data as ExistingImportRecord[]))
+
+        if (data.length < batchSize) break
+        from += batchSize
       }
 
       const existingMap = new Map<string, ExistingImportRecord>()
@@ -889,12 +959,13 @@ export default function RecordsPage() {
           return
         }
 
-        if (!hasChanges(existing, incoming)) {
+        const additionalDataPayload = getNewAdditionalData(existing, incoming)
+        if (!additionalDataPayload) {
           skippedUnchanged += 1
           return
         }
 
-        rowsToUpdate.push({ id: existing.id, payload: incoming })
+        rowsToUpdate.push({ id: existing.id, payload: additionalDataPayload })
       })
 
       rowsToInsert.push(...noKeyIncoming)
