@@ -165,33 +165,36 @@ export function buildDisplayName(record: {
 }
 
 export function mapRecordRow(row: RecordRow): RecordItem {
+  const cap = (val: string | null | undefined) => val ? capitalizeWords(val) : undefined
+  
   const recordType = normalizeRecordType(row.farmer_fisherfolk_both ?? row.type)
-  const name = row.name ?? buildDisplayName({
+  const rawName = row.name ?? buildDisplayName({
     firstName: row.first_name,
     middleName: row.middle_name,
     lastName: row.last_name,
     extName: row.ext_name,
   })
+  const name = capitalizeWords(rawName)
 
   return {
     id: row.id,
     name,
     type: recordType,
-    barangay: row.barangay ?? '',
+    barangay: capitalizeWords(row.barangay ?? ''),
     contactNumber: row.contact_number ?? row.contact_no ?? '',
-    cropType: row.crop_type ?? row.crop_name ?? '',
+    cropType: capitalizeWords(row.crop_type ?? row.crop_name ?? ''),
     yearsExperience: row.years_experience,
     createdAt: row.created_at,
     status: normalizeRecordStatus(row.status),
-    lastName: row.last_name ?? undefined,
-    firstName: row.first_name ?? undefined,
-    middleName: row.middle_name ?? undefined,
-    extName: row.ext_name ?? undefined,
+    lastName: cap(row.last_name),
+    firstName: cap(row.first_name),
+    middleName: cap(row.middle_name),
+    extName: cap(row.ext_name),
     birthdate: row.birthdate ?? undefined,
     age: row.age !== null && row.age !== undefined ? String(row.age) : undefined,
     gender: normalizeRecordGender(row.gender),
     civilStatus: normalizeRecordCivilStatus(row.civil_status),
-    designation: row.designation ?? undefined,
+    designation: cap(row.designation),
     unaKard: row.una_kard ?? undefined,
     imc: row.imc ?? undefined,
     uMobileAccount: row.u_mobile_account ?? undefined,
@@ -200,7 +203,7 @@ export function mapRecordRow(row: RecordRow): RecordItem {
     ffrsDateEncoded: row.ffrs_date_encoded ?? undefined,
     fishrNo: row.fishr_no ?? undefined,
     contactNo: row.contact_no ?? undefined,
-    association: row.association ?? undefined,
+    association: cap(row.association),
     familyMembers: row.family_members !== null && row.family_members !== undefined ? String(row.family_members) : undefined,
     organic: row.organic ?? undefined,
     fourPsMember: row.four_ps_member ?? undefined,
@@ -209,16 +212,16 @@ export function mapRecordRow(row: RecordRow): RecordItem {
     seniorCitizen: row.senior_citizen ?? undefined,
     soloParent: row.solo_parent ?? undefined,
     severelyStuntedChildren: row.severely_stunted_children !== null && row.severely_stunted_children !== undefined ? String(row.severely_stunted_children) : undefined,
-    motherMaidenName: row.mother_maiden_name ?? undefined,
+    motherMaidenName: cap(row.mother_maiden_name),
     householdHead: row.household_head ?? undefined,
-    householdHeadSpecify: row.household_head_specify ?? undefined,
-    typeOfId: row.type_of_id ?? undefined,
+    householdHeadSpecify: cap(row.household_head_specify),
+    typeOfId: cap(row.type_of_id),
     idNo: row.id_no ?? undefined,
     farmerFisherfolkBoth: row.farmer_fisherfolk_both ?? undefined,
-    farmType: row.farm_type ?? undefined,
+    farmType: cap(row.farm_type),
     cropAreaOrHeads: row.crop_area_or_heads ?? undefined,
-    cropName: row.crop_name ?? undefined,
-    remarks: row.remarks ?? undefined,
+    cropName: cap(row.crop_name),
+    remarks: cap(row.remarks),
   }
 }
 
@@ -231,4 +234,64 @@ export function buildRecordNameFromParts(data: {
   const parts = [data.firstName, data.middleName, data.lastName, data.extName]
     .filter((value) => value && value.trim().length > 0)
   return parts.join(' ').trim()
+}
+
+export function capitalizeWords(str: string | null | undefined): string {
+  if (!str) return ''
+  const trimmed = str.trim()
+  if (trimmed.toUpperCase() === trimmed && trimmed.length <= 5) {
+    return trimmed
+  }
+
+  return trimmed
+    .split(' ')
+    .map(word => {
+      if (!word) return ''
+      
+      const lower = word.toLowerCase()
+      if (lower === 'n/a' || lower === 'na') return 'N/A'
+      
+      if (word.toUpperCase() === word && word.length <= 4) {
+        return word
+      }
+      
+      return word
+        .split(/([\-\.\/])/g)
+        .map((part) => {
+          if (part === '-' || part === '.' || part === '/') return part
+          if (!part) return ''
+          
+          const partLower = part.toLowerCase()
+          if (partLower === 'n/a' || partLower === 'na') return 'N/A'
+          
+          if (part.toUpperCase() === part && part.length <= 4) return part
+          return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+        })
+        .join('')
+    })
+    .join(' ')
+}
+
+export function capitalizePayloadStrings<T extends Record<string, any>>(payload: T): T {
+  const result = { ...payload } as Record<string, any>
+  
+  Object.keys(result).forEach((key) => {
+    const value = result[key]
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (trimmed === '') return
+      
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return
+      
+      const lower = trimmed.toLowerCase()
+      if (lower === 'n/a' || lower === 'na') {
+        result[key] = 'N/A'
+        return
+      }
+      
+      result[key] = capitalizeWords(trimmed)
+    }
+  })
+  
+  return result as T
 }

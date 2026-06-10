@@ -6,7 +6,7 @@ import { RegistrationForm } from '@/components/registration-form'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
-import { buildRecordNameFromParts } from '@/lib/records'
+import { buildRecordNameFromParts, capitalizePayloadStrings } from '@/lib/records'
 import { toast } from 'sonner'
 import { 
   UserPlus, 
@@ -127,9 +127,11 @@ export default function RegistrationPage() {
         remarks: data.remarks || null,
       }
 
+      const capitalizedInsertData = capitalizePayloadStrings(insertData)
+
       const { data: result, error } = await supabase
         .from('records')
-        .insert(insertData)
+        .insert(capitalizedInsertData)
         .select()
 
       if (error) {

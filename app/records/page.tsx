@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase'
 import {
   formatRecordDate,
   mapRecordRow,
+  capitalizePayloadStrings,
   type RecordItem,
   type RecordRow,
 } from '@/lib/records'
@@ -476,7 +477,7 @@ const mapCsvRowToPayload = (rawRow: Record<string, string>): ImportRecordPayload
   }
 
   const hasContent = Object.values(payload).some((value) => value !== null && value !== '')
-  return hasContent ? payload : null
+  return hasContent ? capitalizePayloadStrings(payload) : null
 }
 
 const cleanNameString = (str: string | null | undefined): string => {
