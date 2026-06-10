@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import ExcelJS from 'exceljs'
 import { AppLayout } from '@/components/app-layout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -79,6 +80,9 @@ type ExistingImportRecord = {
   organic: string | null
   four_ps_member: string | null
   ips_member: string | null
+  pwd_member: string | null
+  senior_citizen: string | null
+  solo_parent: string | null
   severely_stunted_children: number | null
   mother_maiden_name: string | null
   household_head: string | null
@@ -104,6 +108,7 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   firstname: 'first_name',
   middlename: 'middle_name',
   extname: 'ext_name',
+  extensionname: 'ext_name',
   birthdate: 'birthdate',
   birthdateddmmyyyy: 'birthdate',
   age: 'age',
@@ -115,6 +120,7 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   unakardpassbookno: 'una_kard',
   imc: 'imc',
   umobileaccount: 'u_mobile_account',
+  umobileacctno: 'u_mobile_account',
   lgucodeno: 'lgu_code_no',
   ffrssystemgeneratedno: 'ffrs_system_generated_no',
   ffrsdateencoded: 'ffrs_date_encoded',
@@ -122,18 +128,37 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   association: 'association',
   organization: 'association',
   familymembers: 'family_members',
+  nooffamilymembers: 'family_members',
+  numberoffamilymembers: 'family_members',
   organic: 'organic',
+  organicyn: 'organic',
   fourpsmember: 'four_ps_member',
+  fourpsmemberyn: 'four_ps_member',
   ipsmember: 'ips_member',
+  ipsmemberyn: 'ips_member',
+  pwdmember: 'pwd_member',
+  pwdmemberyn: 'pwd_member',
+  pwd_member: 'pwd_member',
+  seniorcitizen: 'senior_citizen',
+  seniorcitizenyn: 'senior_citizen',
+  senior_citizen: 'senior_citizen',
+  soloparent: 'solo_parent',
+  soloparentyn: 'solo_parent',
+  solo_parent: 'solo_parent',
   severelystuntedchildren: 'severely_stunted_children',
+  noofseverelystuntedchildren059months: 'severely_stunted_children',
   mothermaidenname: 'mother_maiden_name',
   householdhead: 'household_head',
+  householdheadyn: 'household_head',
   householdheadspecify: 'household_head_specify',
+  ifnospecify: 'household_head_specify',
   typeofid: 'type_of_id',
   idno: 'id_no',
   farmerfisherfolkboth: 'farmer_fisherfolk_both',
   farmtype: 'farm_type',
   cropareaorheads: 'crop_area_or_heads',
+  cropareanoofheads: 'crop_area_or_heads',
+  cropareaheads: 'crop_area_or_heads',
   cropname: 'crop_name',
   remarks: 'remarks',
   sector: 'designation',
@@ -146,8 +171,107 @@ const NUMBER_FIELDS = new Set<keyof ImportableRecordRow>([
   'severely_stunted_children',
 ])
 
+const DATE_FIELDS = new Set<keyof ImportableRecordRow>([
+  'birthdate',
+  'ffrs_date_encoded',
+])
+
 const normalizeHeader = (header: string) =>
   header.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const normalizeDateValue = (valStr: string): string | null => {
+  const trimmed = valStr.trim()
+  if (!trimmed) return null
+
+  // 1. Check if it's already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed
+  }
+
+  // 2. Check if it's DD/MM/YYYY or DD-MM-YYYY
+  const match = /^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})$/.exec(trimmed)
+  if (match) {
+    const [, first, second, year] = match
+    const day = Number(first)
+    const month = Number(second)
+    
+    // Validate bounds
+    if (day > 31 || month > 12) {
+      // Heuristic: If first is month (>12 checks)
+      if (month <= 31 && day <= 12) {
+        return `${year}-${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}`
+      }
+      return null
+    }
+
+    if (month > 12 && day <= 12) {
+      return `${year}-${String(day).padStart(2, '0')}-${String(month).padStart(2, '0')}`
+    }
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  }
+
+  const parsed = new Date(trimmed)
+  if (!Number.isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear()
+    const m = String(parsed.getMonth() + 1).padStart(2, '0')
+    const d = String(parsed.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+
+  return null
+}
+
+const findFieldForHeader = (header: string): keyof ImportableRecordRow | null => {
+  const normalized = normalizeHeader(header)
+  if (CSV_FIELD_MAP[normalized]) {
+    return CSV_FIELD_MAP[normalized]
+  }
+  
+  if (normalized.includes('lastname')) return 'last_name'
+  if (normalized.includes('firstname')) return 'first_name'
+  if (normalized.includes('middlename')) return 'middle_name'
+  if (normalized.includes('extname') || normalized.includes('extensionname')) return 'ext_name'
+  if (normalized.includes('birthdate')) return 'birthdate'
+  if (normalized.includes('age')) return 'age'
+  if (normalized.includes('gender')) return 'gender'
+  if (normalized.includes('civilstatus')) return 'civil_status'
+  if (normalized.includes('barangay')) return 'barangay'
+  if (normalized.includes('designation') || normalized.includes('sector')) return 'designation'
+  if (normalized.includes('unakard') || normalized.includes('passbook')) return 'una_kard'
+  if (normalized.includes('imc') || normalized.includes('interventionmonitoring')) return 'imc'
+  if (normalized.includes('umobile')) return 'u_mobile_account'
+  if (normalized.includes('lgucode')) return 'lgu_code_no'
+  if (normalized.includes('ffrssystem') || normalized.includes('systemgenerated')) return 'ffrs_system_generated_no'
+  if (normalized.includes('ffrsdate') || normalized.includes('dateencoded')) return 'ffrs_date_encoded'
+  if (normalized.includes('fishr')) return 'fishr_no'
+  if (normalized.includes('contactno') || normalized.includes('contactnumber')) return 'contact_no'
+  if (normalized.includes('association') || normalized.includes('organization')) return 'association'
+  if (normalized.includes('familymembers')) return 'family_members'
+  if (normalized.includes('organic')) return 'organic'
+  if (normalized.includes('fourps') || normalized.includes('4ps')) return 'four_ps_member'
+  if (normalized.includes('ipsmember')) return 'ips_member'
+  if (normalized.includes('pwdmember')) return 'pwd_member'
+  if (normalized.includes('seniorcitizen')) return 'senior_citizen'
+  if (normalized.includes('soloparent')) return 'solo_parent'
+  if (normalized.includes('severely') || normalized.includes('stunted')) return 'severely_stunted_children'
+  if (normalized.includes('mothermaiden')) return 'mother_maiden_name'
+  if (normalized.includes('householdhead')) {
+    if (normalized.includes('specify') && !normalized.includes('yn')) {
+      return 'household_head_specify'
+    }
+    return 'household_head'
+  }
+  if (normalized.includes('ifnospecify')) return 'household_head_specify'
+  if (normalized.includes('typeofid')) return 'type_of_id'
+  if (normalized.includes('idno')) return 'id_no'
+  if (normalized.includes('farmerfisherfolk') || normalized.includes('type')) return 'farmer_fisherfolk_both'
+  if (normalized.includes('farmtype')) return 'farm_type'
+  if (normalized.includes('croparea') || normalized.includes('heads')) return 'crop_area_or_heads'
+  if (normalized.includes('cropname') || normalized.includes('croptype')) return 'crop_name'
+  if (normalized.includes('remarks')) return 'remarks'
+  
+  return null
+}
 
 const normalizeKeyValue = (value?: string | null) => (value ?? '').trim().toLowerCase()
 
@@ -213,11 +337,92 @@ const parseCsvRows = (csvText: string): Array<Record<string, string>> => {
   })
 }
 
+const parseExcelRows = async (file: File): Promise<Array<Record<string, string>>> => {
+  const arrayBuffer = await file.arrayBuffer()
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(arrayBuffer)
+  
+  let worksheet = workbook.worksheets[0]
+  for (const sheet of workbook.worksheets) {
+    if (sheet.rowCount > 0) {
+      worksheet = sheet
+      break
+    }
+  }
+  
+  if (!worksheet || worksheet.rowCount < 2) return []
+
+  const rows: Array<Record<string, string>> = []
+  
+  const headerRow = worksheet.getRow(1)
+  const headers: string[] = []
+  
+  headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    const val = cell.value
+    headers[colNumber] = (cell.text || (val !== null && val !== undefined ? String(val) : '')).trim()
+  })
+
+  worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) return
+    
+    const rowData: Record<string, string> = {}
+    let hasData = false
+    
+    headers.forEach((header, colNumber) => {
+      if (!header) return
+      const cell = row.getCell(colNumber)
+      let valStr = ''
+      
+      if (cell.value !== null && cell.value !== undefined) {
+        const val = cell.value
+        
+        if (val instanceof Date) {
+          const year = val.getFullYear()
+          const month = String(val.getMonth() + 1).padStart(2, '0')
+          const day = String(val.getDate()).padStart(2, '0')
+          valStr = `${year}-${month}-${day}`
+        } else if (typeof val === 'object') {
+          if ('result' in val) {
+            if (val.result instanceof Date) {
+              const year = val.result.getFullYear()
+              const month = String(val.result.getMonth() + 1).padStart(2, '0')
+              const day = String(val.result.getDate()).padStart(2, '0')
+              valStr = `${year}-${month}-${day}`
+            } else {
+              valStr = val.result !== null && val.result !== undefined ? String(val.result) : ''
+            }
+          } else if ('text' in val) {
+            valStr = String(val.text)
+          } else if ('richText' in val && Array.isArray(val.richText)) {
+            valStr = val.richText.map((rt: any) => rt.text || '').join('')
+          } else {
+            valStr = JSON.stringify(val)
+          }
+        } else {
+          valStr = cell.text || String(val)
+        }
+      }
+      
+      const trimmed = valStr.trim()
+      if (trimmed) {
+        hasData = true
+      }
+      rowData[header] = trimmed
+    })
+    
+    if (hasData) {
+      rows.push(rowData)
+    }
+  })
+  
+  return rows
+}
+
 const mapCsvRowToPayload = (rawRow: Record<string, string>): ImportRecordPayload | null => {
   const payload: ImportRecordPayload = {}
 
   Object.entries(rawRow).forEach(([header, value]) => {
-    const field = CSV_FIELD_MAP[normalizeHeader(header)]
+    const field = findFieldForHeader(header)
     if (!field) return
 
     const trimmedValue = value.trim()
@@ -228,7 +433,12 @@ const mapCsvRowToPayload = (rawRow: Record<string, string>): ImportRecordPayload
 
     if (NUMBER_FIELDS.has(field)) {
       const parsed = Number(trimmedValue)
-      ;(payload as Record<string, unknown>)[field] = Number.isNaN(parsed) ? null : parsed
+      ;(payload as Record<string, unknown>)[field] = Number.isNaN(parsed) ? null : Math.round(parsed)
+      return
+    }
+
+    if (DATE_FIELDS.has(field)) {
+      ;(payload as Record<string, unknown>)[field] = normalizeDateValue(trimmedValue)
       return
     }
 
@@ -356,7 +566,9 @@ export default function RecordsPage() {
         const { data, error } = await supabase
           .from('records')
           .select('*')
-          .order('id', { ascending: false })
+          .order('last_name', { ascending: true, nullsFirst: false })
+          .order('first_name', { ascending: true, nullsFirst: false })
+          .order('name', { ascending: true, nullsFirst: false })
           .range(from, to)
 
         if (error) {
@@ -436,7 +648,7 @@ export default function RecordsPage() {
 
   // Filter and search records
   const filteredRecords = useMemo(() => {
-    return records.filter((record) => {
+    const filtered = records.filter((record) => {
       const recordType = record.farmerFisherfolkBoth ?? record.type
       const matchesType = filterType === 'All' || recordType === filterType
       const matchesStatus = filterStatus === 'All' || record.status === filterStatus
@@ -477,6 +689,31 @@ export default function RecordsPage() {
         matchesID &&
         matchesSearch
       )
+    })
+
+    // Sort alphabetically: last name -> first name -> name
+    return [...filtered].sort((a, b) => {
+      const aLast = (a.lastName || '').trim().toLowerCase()
+      const bLast = (b.lastName || '').trim().toLowerCase()
+      
+      if (aLast !== bLast) {
+        if (!aLast) return 1
+        if (!bLast) return -1
+        return aLast.localeCompare(bLast)
+      }
+      
+      const aFirst = (a.firstName || '').trim().toLowerCase()
+      const bFirst = (b.firstName || '').trim().toLowerCase()
+      
+      if (aFirst !== bFirst) {
+        if (!aFirst) return 1
+        if (!bFirst) return -1
+        return aFirst.localeCompare(bFirst)
+      }
+      
+      const aName = (a.name || '').trim().toLowerCase()
+      const bName = (b.name || '').trim().toLowerCase()
+      return aName.localeCompare(bName)
     })
   }, [records, searchQuery, filterType, filterStatus, filterSector, filterOrganization, filterID])
 
@@ -571,11 +808,19 @@ export default function RecordsPage() {
 
     try {
       setIsImporting(true)
-      const csvText = await file.text()
-      const parsedRows = parseCsvRows(csvText)
+      
+      const fileName = file.name.toLowerCase()
+      let parsedRows: Array<Record<string, string>> = []
+      
+      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        parsedRows = await parseExcelRows(file)
+      } else {
+        const csvText = await file.text()
+        parsedRows = parseCsvRows(csvText)
+      }
 
       if (parsedRows.length === 0) {
-        toast.error('No valid rows found in the CSV file.')
+        toast.error('No valid rows found in the selected file.')
         return
       }
 
@@ -584,7 +829,7 @@ export default function RecordsPage() {
         .filter((row): row is ImportRecordPayload => row !== null)
 
       if (mappedRows.length === 0) {
-        toast.error('No importable values found. Please check your CSV columns.')
+        toast.error('No importable values found. Please check your file columns.')
         return
       }
 
@@ -614,7 +859,7 @@ export default function RecordsPage() {
 
       const { data: existingData, error: existingError } = await supabase
         .from('records')
-        .select('id,id_no,lgu_code_no,fishr_no,first_name,last_name,birthdate,barangay,contact_no,contact_number,name,type,crop_type,years_experience,status,middle_name,ext_name,age,gender,civil_status,designation,una_kard,imc,u_mobile_account,ffrs_system_generated_no,ffrs_date_encoded,association,family_members,organic,four_ps_member,ips_member,severely_stunted_children,mother_maiden_name,household_head,household_head_specify,type_of_id,farmer_fisherfolk_both,farm_type,crop_area_or_heads,crop_name,remarks')
+        .select('id,id_no,lgu_code_no,fishr_no,first_name,last_name,birthdate,barangay,contact_no,contact_number,name,type,crop_type,years_experience,status,middle_name,ext_name,age,gender,civil_status,designation,una_kard,imc,u_mobile_account,ffrs_system_generated_no,ffrs_date_encoded,association,family_members,organic,four_ps_member,ips_member,pwd_member,senior_citizen,solo_parent,severely_stunted_children,mother_maiden_name,household_head,household_head_specify,type_of_id,farmer_fisherfolk_both,farm_type,crop_area_or_heads,crop_name,remarks')
 
       if (existingError) {
         console.error('Failed to load existing records for import matching', existingError)
@@ -665,8 +910,13 @@ export default function RecordsPage() {
         if (chunk.length === 0) continue
         const { error: insertError } = await supabase.from('records').insert(chunk)
         if (insertError) {
-          console.error('Failed to insert imported records', insertError)
-          toast.error('Import failed while adding new records. Please verify the CSV data.', {
+          console.error('Failed to insert imported records:', {
+            message: insertError.message,
+            details: insertError.details,
+            hint: insertError.hint,
+            code: insertError.code,
+          })
+          toast.error('Import failed while adding new records. Please verify the file data.', {
             description: insertError.message || undefined,
           })
           return
@@ -680,7 +930,12 @@ export default function RecordsPage() {
           .eq('id', update.id)
 
         if (updateError) {
-          console.error('Failed to update imported record', updateError)
+          console.error('Failed to update imported record:', {
+            message: updateError.message,
+            details: updateError.details,
+            hint: updateError.hint,
+            code: updateError.code,
+          })
           toast.error('Import failed while updating existing records. Please retry.', {
             description: updateError.message || undefined,
           })
@@ -693,8 +948,8 @@ export default function RecordsPage() {
         description: `Added ${rowsToInsert.length}, updated ${rowsToUpdate.length}, skipped ${skippedUnchanged}.`,
       })
     } catch (error) {
-      console.error('CSV import failed', error)
-      toast.error('Unable to import CSV. Please try again.')
+      console.error('File import failed', error)
+      toast.error('Unable to import file. Please try again.')
     } finally {
       setIsImporting(false)
       event.target.value = ''
@@ -736,7 +991,7 @@ export default function RecordsPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               className="hidden"
               onChange={handleImportCsv}
             />
