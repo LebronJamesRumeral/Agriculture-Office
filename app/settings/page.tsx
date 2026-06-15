@@ -19,8 +19,6 @@ import {
   Phone, 
   MapPin, 
   Settings as SettingsIcon,
-  Bell,
-  Eye,
   Database,
   Save,
   RefreshCw,
@@ -31,7 +29,6 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 
@@ -47,25 +44,10 @@ export default function SettingsPage() {
     zipCode: '2200'
   })
 
-  const [preferences, setPreferences] = useState({
-    recordsPerPage: '10',
-    defaultView: 'table',
-    notification: 'all',
-    emailNotifications: true,
-    smsNotifications: false,
-    darkMode: false,
-    autoSave: true,
-    compactView: false
-  })
-
   const [activeTab, setActiveTab] = useState('general')
 
   const handleSaveOfficeInfo = () => {
     toast.success('Office information saved successfully!')
-  }
-
-  const handleSavePreferences = () => {
-    toast.success('Preferences saved successfully!')
   }
 
   return (
@@ -91,14 +73,10 @@ export default function SettingsPage() {
 
         {/* Settings Tabs */}
         <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
             <TabsTrigger value="general" className="gap-2">
               <Building2 className="h-4 w-4" />
               General
-            </TabsTrigger>
-            <TabsTrigger value="preferences" className="gap-2">
-              <SettingsIcon className="h-4 w-4" />
-              Preferences
             </TabsTrigger>
             <TabsTrigger value="system" className="gap-2">
               <Database className="h-4 w-4" />
@@ -295,165 +273,6 @@ export default function SettingsPage() {
                       <SelectItem value="ymd">YYYY-MM-DD</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
-            </Card>
-          </TabsContent>
-
-          {/* Preferences Tab */}
-          <TabsContent value="preferences" className="space-y-4">
-            <Card className="border border-border/50 bg-gradient-to-br from-background via-background to-muted/20 overflow-hidden">
-              <div className="absolute right-0 top-0 h-32 w-32 translate-x-12 -translate-y-12 rounded-full bg-primary/5" />
-              
-              <div className="relative p-6">
-                <div className="mb-6 flex items-center gap-2">
-                  <div className="rounded-lg bg-primary/10 p-2">
-                    <SettingsIcon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-foreground">Display Preferences</h2>
-                    <p className="text-sm text-muted-foreground">Customize how data is displayed</p>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Records Per Page</Label>
-                      <Select
-                        value={preferences.recordsPerPage}
-                        onValueChange={(value) =>
-                          setPreferences((prev) => ({ ...prev, recordsPerPage: value }))
-                        }
-                      >
-                        <SelectTrigger className="border-border/50 bg-background/50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5">5 Records</SelectItem>
-                          <SelectItem value="10">10 Records</SelectItem>
-                          <SelectItem value="20">20 Records</SelectItem>
-                          <SelectItem value="50">50 Records</SelectItem>
-                          <SelectItem value="100">100 Records</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Default View</Label>
-                      <Select
-                        value={preferences.defaultView}
-                        onValueChange={(value) =>
-                          setPreferences((prev) => ({ ...prev, defaultView: value }))
-                        }
-                      >
-                        <SelectTrigger className="border-border/50 bg-background/50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="table">Table View</SelectItem>
-                          <SelectItem value="card">Card View</SelectItem>
-                          <SelectItem value="grid">Grid View</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="flex items-center justify-between rounded-lg border border-border/50 p-3">
-                      <div className="space-y-0.5">
-                        <Label className="text-sm font-medium">Compact View</Label>
-                        <p className="text-xs text-muted-foreground">Show more items with less spacing</p>
-                      </div>
-                      <Switch
-                        checked={preferences.compactView}
-                        onCheckedChange={(checked) =>
-                          setPreferences((prev) => ({ ...prev, compactView: checked }))
-                        }
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-border/50 p-3">
-                      <div className="space-y-0.5">
-                        <Label className="text-sm font-medium">Auto-save</Label>
-                        <p className="text-xs text-muted-foreground">Automatically save changes</p>
-                      </div>
-                      <Switch
-                        checked={preferences.autoSave}
-                        onCheckedChange={(checked) =>
-                          setPreferences((prev) => ({ ...prev, autoSave: checked }))
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <div className="mb-4 flex items-center gap-2">
-                      <Bell className="h-4 w-4 text-primary" />
-                      <h3 className="font-medium text-foreground">Notification Settings</h3>
-                    </div>
-                    
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="flex items-center justify-between rounded-lg border border-border/50 p-3">
-                        <div className="space-y-0.5">
-                          <Label className="text-sm font-medium">Email Notifications</Label>
-                          <p className="text-xs text-muted-foreground">Receive updates via email</p>
-                        </div>
-                        <Switch
-                          checked={preferences.emailNotifications}
-                          onCheckedChange={(checked) =>
-                            setPreferences((prev) => ({ ...prev, emailNotifications: checked }))
-                          }
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-lg border border-border/50 p-3">
-                        <div className="space-y-0.5">
-                          <Label className="text-sm font-medium">SMS Notifications</Label>
-                          <p className="text-xs text-muted-foreground">Receive updates via SMS</p>
-                        </div>
-                        <Switch
-                          checked={preferences.smsNotifications}
-                          onCheckedChange={(checked) =>
-                            setPreferences((prev) => ({ ...prev, smsNotifications: checked }))
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 space-y-2">
-                      <Label>Notification Priority</Label>
-                      <Select
-                        value={preferences.notification}
-                        onValueChange={(value) =>
-                          setPreferences((prev) => ({ ...prev, notification: value }))
-                        }
-                      >
-                        <SelectTrigger className="border-border/50 bg-background/50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Notifications</SelectItem>
-                          <SelectItem value="important">Important Only</SelectItem>
-                          <SelectItem value="none">None</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={handleSavePreferences}
-                      className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
-                    >
-                      <Save className="h-4 w-4" />
-                      Save Preferences
-                    </Button>
-                  </div>
                 </div>
               </div>
             </Card>

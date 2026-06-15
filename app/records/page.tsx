@@ -49,6 +49,18 @@ type ImportRecordPayload = {
   [K in keyof ImportableRecordRow]?: ImportableRecordRow[K] | null
 }
 
+type ImportReport = {
+  totalRows: number
+  successfullyImported: number
+  updated: number
+  skippedUnchanged: number
+  failed: number
+  successfullyMappedFields: string[]
+  unmappedColumns: string[]
+  failedRows: Array<{ rowNumber: number; reason: string }>
+  errors: string[]
+}
+
 type ExistingImportRecord = {
   id: number
   id_no: string | null
@@ -97,14 +109,8 @@ type ExistingImportRecord = {
 }
 
 const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
+  // Personal Information
   name: 'name',
-  type: 'type',
-  barangay: 'barangay',
-  contactnumber: 'contact_number',
-  contactno: 'contact_no',
-  croptype: 'crop_type',
-  yearsexperience: 'years_experience',
-  status: 'status',
   lastname: 'last_name',
   firstname: 'first_name',
   middlename: 'middle_name',
@@ -115,17 +121,30 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   age: 'age',
   gender: 'gender',
   civilstatus: 'civil_status',
+  barangay: 'barangay',
   designation: 'designation',
+  sector: 'designation',
+  
+  // IDs and Program Cards
   unakard: 'una_kard',
+  unakardusscnetworkacctkard: 'una_kard',
   unakardpassbook: 'una_kard',
   unakardpassbookno: 'una_kard',
   imc: 'imc',
+  interventionmonitoringcard: 'imc',
+  interventionmonitoringcardimc: 'imc',
   umobileaccount: 'u_mobile_account',
   umobileacctno: 'u_mobile_account',
   lgucodeno: 'lgu_code_no',
   ffrssystemgeneratedno: 'ffrs_system_generated_no',
   ffrsdateencoded: 'ffrs_date_encoded',
   fishrno: 'fishr_no',
+  typeofid: 'type_of_id',
+  idno: 'id_no',
+  
+  // Household and Membership
+  contactnumber: 'contact_number',
+  contactno: 'contact_no',
   association: 'association',
   organization: 'association',
   familymembers: 'family_members',
@@ -135,14 +154,24 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   organicyn: 'organic',
   fourpsmember: 'four_ps_member',
   fourpsmemberyn: 'four_ps_member',
+  '4psmember': 'four_ps_member',
+  '4psmemberyn': 'four_ps_member',
+  '4ps': 'four_ps_member',
+  '4p\'smember': 'four_ps_member',
+  '4p\'s': 'four_ps_member',
+  '4p\'smembery/n': 'four_ps_member',
+  '4p\'smemberyn': 'four_ps_member',
   ipsmember: 'ips_member',
   ipsmemberyn: 'ips_member',
+  'ips': 'ips_member',
+  'ip\'smember': 'ips_member',
+  'ip\'s': 'ips_member',
+  'ip\'smembery/n': 'ips_member',
+  'ip\'smemberyn': 'ips_member',
   pwdmember: 'pwd_member',
   pwdmemberyn: 'pwd_member',
-  pwd_member: 'pwd_member',
   seniorcitizen: 'senior_citizen',
   seniorcitizenyn: 'senior_citizen',
-  senior_citizen: 'senior_citizen',
   soloparent: 'solo_parent',
   soloparentyn: 'solo_parent',
   solo_parent: 'solo_parent',
@@ -153,16 +182,27 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   householdheadyn: 'household_head',
   householdheadspecify: 'household_head_specify',
   ifnospecify: 'household_head_specify',
-  typeofid: 'type_of_id',
-  idno: 'id_no',
+  
+  // Farm / Fisherfolk Details
   farmerfisherfolkboth: 'farmer_fisherfolk_both',
+  farmerfisherfolk: 'farmer_fisherfolk_both',
+  'farmer/fisherfolk': 'farmer_fisherfolk_both',
+  'farmer/fisherfolk/both': 'farmer_fisherfolk_both',
   farmtype: 'farm_type',
   cropareaorheads: 'crop_area_or_heads',
   cropareanoofheads: 'crop_area_or_heads',
   cropareaheads: 'crop_area_or_heads',
   cropname: 'crop_name',
+  croptype: 'crop_type',
+  
+  // System Details
+  status: 'status',
   remarks: 'remarks',
-  sector: 'designation',
+  yearsexperience: 'years_experience',
+  type: 'type',
+  
+  // Ignore common Excel columns (map to name as placeholder)
+  no: 'name', // Row number column - will be ignored during import
 }
 
 const NUMBER_FIELDS = new Set<keyof ImportableRecordRow>([
@@ -177,8 +217,17 @@ const DATE_FIELDS = new Set<keyof ImportableRecordRow>([
   'ffrs_date_encoded',
 ])
 
-const normalizeHeader = (header: string) =>
-  header.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+const normalizeHeader = (header: string): string => {
+  // Remove line breaks, extra spaces, and convert to lowercase
+  const normalized = header
+    .replace(/\n/g, ' ')  // Replace line breaks with spaces
+    .replace(/\r/g, '')   // Remove carriage returns
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '') // Remove all spaces for matching
+  return normalized
+}
 
 const normalizeDateValue = (valStr: string): string | null => {
   const trimmed = valStr.trim()
@@ -224,52 +273,95 @@ const normalizeDateValue = (valStr: string): string | null => {
 
 const findFieldForHeader = (header: string): keyof ImportableRecordRow | null => {
   const normalized = normalizeHeader(header)
+  
+  // First try direct lookup in CSV_FIELD_MAP
   if (CSV_FIELD_MAP[normalized]) {
     return CSV_FIELD_MAP[normalized]
   }
   
-  if (normalized.includes('lastname')) return 'last_name'
-  if (normalized.includes('firstname')) return 'first_name'
-  if (normalized.includes('middlename')) return 'middle_name'
-  if (normalized.includes('extname') || normalized.includes('extensionname')) return 'ext_name'
-  if (normalized.includes('birthdate')) return 'birthdate'
-  if (normalized.includes('age')) return 'age'
-  if (normalized.includes('gender')) return 'gender'
-  if (normalized.includes('civilstatus')) return 'civil_status'
-  if (normalized.includes('barangay')) return 'barangay'
-  if (normalized.includes('designation') || normalized.includes('sector')) return 'designation'
-  if (normalized.includes('unakard') || normalized.includes('passbook')) return 'una_kard'
-  if (normalized.includes('imc') || normalized.includes('interventionmonitoring')) return 'imc'
-  if (normalized.includes('umobile')) return 'u_mobile_account'
-  if (normalized.includes('lgucode')) return 'lgu_code_no'
-  if (normalized.includes('ffrssystem') || normalized.includes('systemgenerated')) return 'ffrs_system_generated_no'
-  if (normalized.includes('ffrsdate') || normalized.includes('dateencoded')) return 'ffrs_date_encoded'
-  if (normalized.includes('fishr')) return 'fishr_no'
-  if (normalized.includes('contactno') || normalized.includes('contactnumber')) return 'contact_no'
-  if (normalized.includes('association') || normalized.includes('organization')) return 'association'
-  if (normalized.includes('familymembers')) return 'family_members'
-  if (normalized.includes('organic')) return 'organic'
-  if (normalized.includes('fourps') || normalized.includes('4ps')) return 'four_ps_member'
-  if (normalized.includes('ipsmember')) return 'ips_member'
-  if (normalized.includes('pwdmember')) return 'pwd_member'
-  if (normalized.includes('seniorcitizen')) return 'senior_citizen'
-  if (normalized.includes('soloparent')) return 'solo_parent'
-  if (normalized.includes('severely') || normalized.includes('stunted')) return 'severely_stunted_children'
-  if (normalized.includes('mothermaiden')) return 'mother_maiden_name'
-  if (normalized.includes('householdhead')) {
-    if (normalized.includes('specify') && !normalized.includes('yn')) {
-      return 'household_head_specify'
+  // Enhanced fuzzy matching with more comprehensive patterns
+  const patterns: Array<{ pattern: string; field: keyof ImportableRecordRow }> = [
+    // Personal Information
+    { pattern: 'lastname', field: 'last_name' },
+    { pattern: 'firstname', field: 'first_name' },
+    { pattern: 'middlename', field: 'middle_name' },
+    { pattern: 'extname', field: 'ext_name' },
+    { pattern: 'extensionname', field: 'ext_name' },
+    { pattern: 'birthdate', field: 'birthdate' },
+    { pattern: 'age', field: 'age' },
+    { pattern: 'gender', field: 'gender' },
+    { pattern: 'civilstatus', field: 'civil_status' },
+    { pattern: 'barangay', field: 'barangay' },
+    { pattern: 'designation', field: 'designation' },
+    { pattern: 'sector', field: 'designation' },
+    
+    // IDs and Program Cards
+    { pattern: 'unakard', field: 'una_kard' },
+    { pattern: 'ussc', field: 'una_kard' },
+    { pattern: 'networkacct', field: 'una_kard' },
+    { pattern: 'passbook', field: 'una_kard' },
+    { pattern: 'imc', field: 'imc' },
+    { pattern: 'intervention', field: 'imc' },
+    { pattern: 'monitoring', field: 'imc' },
+    { pattern: 'umobile', field: 'u_mobile_account' },
+    { pattern: 'lgucode', field: 'lgu_code_no' },
+    { pattern: 'ffrssystem', field: 'ffrs_system_generated_no' },
+    { pattern: 'systemgenerated', field: 'ffrs_system_generated_no' },
+    { pattern: 'ffrsdate', field: 'ffrs_date_encoded' },
+    { pattern: 'dateencoded', field: 'ffrs_date_encoded' },
+    { pattern: 'fishr', field: 'fishr_no' },
+    { pattern: 'typeofid', field: 'type_of_id' },
+    { pattern: 'idno', field: 'id_no' },
+    
+    // Household and Membership
+    { pattern: 'contactno', field: 'contact_no' },
+    { pattern: 'contactnumber', field: 'contact_number' },
+    { pattern: 'association', field: 'association' },
+    { pattern: 'organization', field: 'association' },
+    { pattern: 'familymembers', field: 'family_members' },
+    { pattern: 'organic', field: 'organic' },
+    { pattern: 'fourps', field: 'four_ps_member' },
+    { pattern: '4ps', field: 'four_ps_member' },
+    { pattern: '4p', field: 'four_ps_member' },
+    { pattern: 'ips', field: 'ips_member' },
+    { pattern: 'ip', field: 'ips_member' },
+    { pattern: 'ipsmember', field: 'ips_member' },
+    { pattern: 'pwdmember', field: 'pwd_member' },
+    { pattern: 'seniorcitizen', field: 'senior_citizen' },
+    { pattern: 'soloparent', field: 'solo_parent' },
+    { pattern: 'severely', field: 'severely_stunted_children' },
+    { pattern: 'stunted', field: 'severely_stunted_children' },
+    { pattern: 'mothermaiden', field: 'mother_maiden_name' },
+    { pattern: 'householdhead', field: 'household_head' },
+    { pattern: 'ifnospecify', field: 'household_head_specify' },
+    
+    // Farm / Fisherfolk Details
+    { pattern: 'farmerfisherfolk', field: 'farmer_fisherfolk_both' },
+    { pattern: 'farmer', field: 'farmer_fisherfolk_both' },
+    { pattern: 'fisherfolk', field: 'farmer_fisherfolk_both' },
+    { pattern: 'farmtype', field: 'farm_type' },
+    { pattern: 'croparea', field: 'crop_area_or_heads' },
+    { pattern: 'heads', field: 'crop_area_or_heads' },
+    { pattern: 'cropname', field: 'crop_name' },
+    { pattern: 'croptype', field: 'crop_type' },
+    
+    // System Details
+    { pattern: 'status', field: 'status' },
+    { pattern: 'remarks', field: 'remarks' },
+    { pattern: 'yearsexperience', field: 'years_experience' },
+    { pattern: 'type', field: 'type' },
+  ]
+  
+  // Try to match patterns
+  for (const { pattern, field } of patterns) {
+    if (normalized.includes(pattern)) {
+      // Special handling for household_head_specify
+      if (field === 'household_head' && normalized.includes('specify') && !normalized.includes('yn')) {
+        return 'household_head_specify'
+      }
+      return field
     }
-    return 'household_head'
   }
-  if (normalized.includes('ifnospecify')) return 'household_head_specify'
-  if (normalized.includes('typeofid')) return 'type_of_id'
-  if (normalized.includes('idno')) return 'id_no'
-  if (normalized.includes('farmerfisherfolk') || normalized.includes('type')) return 'farmer_fisherfolk_both'
-  if (normalized.includes('farmtype')) return 'farm_type'
-  if (normalized.includes('croparea') || normalized.includes('heads')) return 'crop_area_or_heads'
-  if (normalized.includes('cropname') || normalized.includes('croptype')) return 'crop_name'
-  if (normalized.includes('remarks')) return 'remarks'
   
   return null
 }
@@ -419,12 +511,29 @@ const parseExcelRows = async (file: File): Promise<Array<Record<string, string>>
   return rows
 }
 
-const mapCsvRowToPayload = (rawRow: Record<string, string>): ImportRecordPayload | null => {
+const mapCsvRowToPayload = (
+  rawRow: Record<string, string>,
+  report: ImportReport,
+  rowNumber: number
+): ImportRecordPayload | null => {
   const payload: ImportRecordPayload = {}
+  const unmappedInRow: string[] = []
 
   Object.entries(rawRow).forEach(([header, value]) => {
     const field = findFieldForHeader(header)
-    if (!field) return
+    if (!field) {
+      const normalizedHeader = normalizeHeader(header)
+      if (!report.unmappedColumns.includes(header)) {
+        report.unmappedColumns.push(header)
+        console.warn(`[Import] Unmapped column header: "${header}" (normalized: "${normalizedHeader}")`)
+      }
+      unmappedInRow.push(header)
+      return
+    }
+
+    if (!report.successfullyMappedFields.includes(field)) {
+      report.successfullyMappedFields.push(field)
+    }
 
     const trimmedValue = value.trim()
     if (trimmedValue === '') {
@@ -439,7 +548,11 @@ const mapCsvRowToPayload = (rawRow: Record<string, string>): ImportRecordPayload
     }
 
     if (DATE_FIELDS.has(field)) {
-      ;(payload as Record<string, unknown>)[field] = normalizeDateValue(trimmedValue)
+      const dateValue = normalizeDateValue(trimmedValue)
+      ;(payload as Record<string, unknown>)[field] = dateValue
+      if (!dateValue && trimmedValue) {
+        console.warn(`[Import] Row ${rowNumber}: Failed to parse date for field "${field}": "${trimmedValue}"`)
+      }
       return
     }
 
@@ -477,7 +590,12 @@ const mapCsvRowToPayload = (rawRow: Record<string, string>): ImportRecordPayload
   }
 
   const hasContent = Object.values(payload).some((value) => value !== null && value !== '')
-  return hasContent ? capitalizePayloadStrings(payload) : null
+  if (!hasContent) {
+    report.failedRows.push({ rowNumber, reason: 'No valid data found in row' })
+    return null
+  }
+
+  return capitalizePayloadStrings(payload)
 }
 
 const cleanNameString = (str: string | null | undefined): string => {
@@ -878,12 +996,35 @@ export default function RecordsPage() {
         return
       }
 
+      // Initialize import report
+      const report: ImportReport = {
+        totalRows: parsedRows.length,
+        successfullyImported: 0,
+        updated: 0,
+        skippedUnchanged: 0,
+        failed: 0,
+        successfullyMappedFields: [],
+        unmappedColumns: [],
+        failedRows: [],
+        errors: [],
+      }
+
+      console.log(`[Import] Starting import of ${parsedRows.length} rows from file: ${file.name}`)
+      console.log(`[Import] Excel headers found:`, Object.keys(parsedRows[0] || {}))
+
       const mappedRows = parsedRows
-        .map(mapCsvRowToPayload)
+        .map((row, index) => mapCsvRowToPayload(row, report, index + 2)) // +2 because row 1 is header
         .filter((row): row is ImportRecordPayload => row !== null)
 
+      console.log(`[Import] Successfully mapped ${mappedRows.length} rows`)
+      console.log(`[Import] Successfully mapped fields:`, report.successfullyMappedFields)
+      console.log(`[Import] Unmapped columns:`, report.unmappedColumns)
+      console.log(`[Import] Failed rows:`, report.failedRows)
+
       if (mappedRows.length === 0) {
-        toast.error('No importable values found. Please check your file columns.')
+        toast.error('No importable values found. Please check your file columns.', {
+          description: `Unmapped columns: ${report.unmappedColumns.join(', ')}`,
+        })
         return
       }
 
@@ -1030,20 +1171,20 @@ export default function RecordsPage() {
           if (lookupByPerson.has(personKey)) return lookupByPerson.get(personKey)
         }
 
+        // Smarter fallback matching - require more specific information
         const barangay = normalizeKeyValue(incoming.barangay)
         const contact = normalizeKeyValue(incoming.contact_no ?? incoming.contact_number)
-        if (nameKey && barangay && contact) {
+        
+        // Only use fallback if name has at least 2 parts (first + last name)
+        const nameParts = nameKey.split(' ')
+        if (nameKey && nameParts.length >= 2 && barangay && contact) {
           const fallbackKey = `${nameKey}|${barangay}|${contact}`
           if (lookupByFallback.has(fallbackKey)) return lookupByFallback.get(fallbackKey)
         }
 
-        if (nameKey && barangay) {
+        if (nameKey && nameParts.length >= 2 && barangay) {
           const nameBrgyKey = `${nameKey}|${barangay}`
           if (lookupByNameBrgy.has(nameBrgyKey)) return lookupByNameBrgy.get(nameBrgyKey)
-        }
-
-        if (nameKey && lookupByName.has(nameKey)) {
-          return lookupByName.get(nameKey)
         }
 
         return undefined
@@ -1051,9 +1192,9 @@ export default function RecordsPage() {
 
       const rowsToInsert: ImportRecordPayload[] = []
       const updatesMap = new Map<number, ImportRecordPayload>()
-      let skippedUnchanged = 0
 
-      mappedRows.forEach((incoming) => {
+      mappedRows.forEach((incoming, index) => {
+        const rowNumber = index + 2 // +2 because row 1 is header
         const matchedRecord = findMatchingRecord(incoming)
 
         if (!matchedRecord) {
@@ -1063,6 +1204,8 @@ export default function RecordsPage() {
           }
           rowsToInsert.push(newRecord.payload)
           registerLookup(newRecord)
+          report.successfullyImported += 1
+          console.log(`[Import] Row ${rowNumber}: New record will be inserted`)
           return
         }
 
@@ -1073,7 +1216,8 @@ export default function RecordsPage() {
           )
 
           if (!additionalDataPayload) {
-            skippedUnchanged += 1
+            report.skippedUnchanged += 1
+            console.log(`[Import] Row ${rowNumber}: No changes detected, skipping`)
             return
           }
 
@@ -1086,6 +1230,8 @@ export default function RecordsPage() {
           } else {
             updatesMap.set(matchedRecord.id, { ...additionalDataPayload })
           }
+          report.updated += 1
+          console.log(`[Import] Row ${rowNumber}: Existing record ID ${matchedRecord.id} will be updated`)
         } else {
           let hasMergedAdditional = false
           Object.entries(incoming).forEach(([key, value]) => {
@@ -1104,8 +1250,10 @@ export default function RecordsPage() {
 
           if (hasMergedAdditional) {
             registerLookup(matchedRecord)
+            report.updated += 1
+            console.log(`[Import] Row ${rowNumber}: Unmatched record merged with additional data`)
           } else {
-            skippedUnchanged += 1
+            report.skippedUnchanged += 1
           }
         }
       })
@@ -1160,9 +1308,28 @@ export default function RecordsPage() {
       }
 
       await loadRecords()
+      
+      // Log final import report
+      console.log('[Import] Final Import Report:', report)
+      
       toast.success('Import complete.', {
-        description: `Added ${rowsToInsert.length}, updated ${rowsToUpdate.length}, skipped ${skippedUnchanged}.`,
+        description: `Added ${report.successfullyImported}, updated ${report.updated}, skipped ${report.skippedUnchanged}.`,
       })
+      
+      // Show detailed report if there are unmapped columns or failed rows
+      if (report.unmappedColumns.length > 0) {
+        console.warn(`[Import] ${report.unmappedColumns.length} columns were not mapped:`, report.unmappedColumns)
+        toast.warning('Some columns were not mapped', {
+          description: `Unmapped: ${report.unmappedColumns.slice(0, 5).join(', ')}${report.unmappedColumns.length > 5 ? '...' : ''}`,
+        })
+      }
+      
+      if (report.failedRows.length > 0) {
+        console.error(`[Import] ${report.failedRows.length} rows failed to import:`, report.failedRows)
+        toast.error('Some rows failed to import', {
+          description: `${report.failedRows.length} rows had errors. Check console for details.`,
+        })
+      }
     } catch (error) {
       console.error('File import failed', error)
       toast.error('Unable to import file. Please try again.')

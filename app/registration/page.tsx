@@ -66,6 +66,7 @@ interface FormData {
 export default function RegistrationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [activeStep, setActiveStep] = useState(1)
+  const [formKey, setFormKey] = useState(0)
 
   const handleSubmit = async (data: FormData) => {
     setIsSubmitting(true)
@@ -152,6 +153,8 @@ export default function RegistrationPage() {
         icon: <CheckCircle2 className="h-4 w-4" />,
       })
 
+      // Reset form for new registration
+      setFormKey(prev => prev + 1)
       setIsSubmitting(false)
     } catch (err) {
       console.error('Unexpected error during registration:', err)
@@ -190,7 +193,7 @@ export default function RegistrationPage() {
           {/* Registration Form - Takes 2/3 of the space */}
           <div className="lg:col-span-2">
             <Card className="border border-border/50 bg-gradient-to-br from-background via-background to-muted/20 p-6">
-              <RegistrationForm onSubmit={handleSubmit} />
+              <RegistrationForm key={formKey} onSubmit={handleSubmit} />
             </Card>
           </div>
 
