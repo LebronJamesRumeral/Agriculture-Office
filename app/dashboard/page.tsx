@@ -346,26 +346,6 @@ export default function DashboardPage() {
               </div>
             </Card>
 
-            {/* Pending Review */}
-            <Card className="group relative overflow-hidden border border-border/50 bg-gradient-to-br from-background via-background to-muted/20 p-5 transition-all hover:shadow-md">
-              <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-amber-500/5 transition-transform group-hover:scale-150" />
-              <div className="relative">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Pending Review
-                    </p>
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-3xl font-bold text-foreground">5</p>
-                    </div>
-                  </div>
-                  <div className="rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 p-3 ring-2 ring-amber-500/10">
-                    <AlertCircle className="h-5 w-5 text-amber-500" />
-                  </div>
-                </div>
-                <p className="mt-3 text-xs text-muted-foreground">Waiting for approval</p>
-              </div>
-            </Card>
           </div>
         )}
 
