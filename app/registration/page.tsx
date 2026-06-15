@@ -252,12 +252,6 @@ export default function RegistrationPage() {
                     Specify crop type and area for accurate tracking
                   </p>
                 </div>
-                <div className="rounded-lg bg-green-500/5 p-3">
-                  <p className="text-xs font-medium text-green-600">ID Verification</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Upload clear photos of both front and back
-                  </p>
-                </div>
               </div>
             </Card>
           </div>
