@@ -200,9 +200,6 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   remarks: 'remarks',
   yearsexperience: 'years_experience',
   type: 'type',
-  
-  // Ignore common Excel columns (map to name as placeholder)
-  no: 'name', // Row number column - will be ignored during import
 }
 
 const NUMBER_FIELDS = new Set<keyof ImportableRecordRow>([
@@ -375,6 +372,31 @@ const normalizeComparableValue = (value: unknown) => {
   return str
 }
 
+const isValidIdentifier = (val: string): boolean => {
+  const cleaned = val.trim().toLowerCase()
+  return (
+    cleaned !== '' &&
+    cleaned !== 'n/a' &&
+    cleaned !== 'na' &&
+    cleaned !== 'none' &&
+    cleaned !== 'not applicable' &&
+    cleaned !== 'not_applicable' &&
+    cleaned !== 'not applicable.' &&
+    cleaned !== 'null' &&
+    cleaned !== '-' &&
+    cleaned !== '—'
+  )
+}
+
+const isSamePerson = (rec1: ImportRecordPayload, rec2: ImportRecordPayload): boolean => {
+  const first1 = normalizeComparableValue(rec1.first_name)
+  const first2 = normalizeComparableValue(rec2.first_name)
+  const last1 = normalizeComparableValue(rec1.last_name)
+  const last2 = normalizeComparableValue(rec2.last_name)
+  
+  return first1 === first2 && last1 === last2
+}
+
 const parseCsvLine = (line: string): string[] => {
   const values: string[] = []
   let current = ''
@@ -523,6 +545,14 @@ const mapCsvRowToPayload = (
     const field = findFieldForHeader(header)
     if (!field) {
       const normalizedHeader = normalizeHeader(header)
+      if (
+        normalizedHeader === 'no' ||
+        normalizedHeader === 'no.' ||
+        normalizedHeader === 'num' ||
+        normalizedHeader === 'number'
+      ) {
+        return
+      }
       if (!report.unmappedColumns.includes(header)) {
         report.unmappedColumns.push(header)
         console.warn(`[Import] Unmapped column header: "${header}" (normalized: "${normalizedHeader}")`)
@@ -614,6 +644,16 @@ const getUnifiedNormalizedName = (row: {
   ext_name?: string | null
   name?: string | null
 }): string => {
+  const firstName = cleanNameString(row.first_name)
+  const lastName = cleanNameString(row.last_name)
+  
+  if (firstName && lastName) {
+    const parts = [row.first_name, row.middle_name, row.last_name, row.ext_name]
+      .map(cleanNameString)
+      .filter(Boolean)
+    return parts.join(' ').replace(/\s+/g, ' ')
+  }
+
   const nameVal = cleanNameString(row.name)
   if (nameVal) return nameVal
 
@@ -921,53 +961,119 @@ export default function RecordsPage() {
     toast.success('Record deleted successfully.')
   }
 
-  const handleExportToExcel = () => {
-    const headers = [
-      'No',
-      'Last Name',
-      'First Name',
-      'Middle Name',
-      'Ext Name',
-      'Birthdate (DD/MM/YYYY)',
-      'Age',
-      'Gender',
-      'Civil Status',
-      'Barangay',
-      'Designation',
-      'UNA KARD (PASSBOOK)',
-    ]
-
-    const csvRows = [
-      headers.join(','),
-      ...filteredRecords.map((record: RecordItem, index: number) => {
-        return [
-          `"${index + 1}"`,
-          `"${record.lastName || ''}"`,
-          `"${record.firstName || ''}"`,
-          `"${record.middleName || ''}"`,
-          `"${record.extName || ''}"`,
-          `"${formatRecordDate(record.birthdate) || ''}"`,
-          `"${record.age || ''}"`,
-          `"${record.gender || ''}"`,
-          `"${record.civilStatus || ''}"`,
-          `"${record.barangay || ''}"`,
-          `"${record.designation || ''}"`,
-          `"${record.unaKard || ''}"`,
-        ].join(',')
+  const handleExportToExcel = async () => {
+    try {
+      const rows = filteredRecords.map((record: RecordItem, index: number) => {
+        return {
+          id: record.id,
+          lastName: record.lastName || '',
+          firstName: record.firstName || '',
+          middleName: record.middleName || '',
+          extName: record.extName || '',
+          birthdate: formatRecordDate(record.birthdate) || '',
+          age: record.age || '',
+          gender: record.gender || '',
+          civilStatus: record.civilStatus || '',
+          barangay: record.barangay || '',
+          designation: record.designation || '',
+          unaKard: record.unaKard || '',
+          imc: record.imc || '',
+          uMobileAccount: record.uMobileAccount || '',
+          lguCodeNo: record.lguCodeNo || '',
+          ffrsSystemGeneratedNo: record.ffrsSystemGeneratedNo || '',
+          ffrsDateEncoded: formatRecordDate(record.ffrsDateEncoded) || '',
+          fishrNo: record.fishrNo || '',
+          contactNo: record.contactNo || record.contactNumber || '',
+          association: record.association || '',
+          familyMembers: record.familyMembers || '',
+          organic: record.organic || '',
+          fourPsMember: record.fourPsMember || '',
+          ipsMember: record.ipsMember || '',
+          pwdMember: record.pwdMember || '',
+          seniorCitizen: record.seniorCitizen || '',
+          soloParent: record.soloParent || '',
+          severelyStuntedChildren: record.severelyStuntedChildren || '',
+          motherMaidenName: record.motherMaidenName || '',
+          householdHead: record.householdHead || '',
+          householdHeadSpecify: record.householdHeadSpecify || '',
+          typeOfId: record.typeOfId || '',
+          idNo: record.idNo || '',
+          farmerFisherfolkBoth: record.farmerFisherfolkBoth || record.type || '',
+          farmType: record.farmType || '',
+          cropAreaOrHeads: record.cropAreaOrHeads || '',
+          cropName: record.cropName || record.cropType || '',
+          status: record.status || '',
+          createdAt: formatRecordDate(record.createdAt) || '',
+          remarks: record.remarks || '',
+        }
       })
-    ]
 
-    const csvContent = csvRows.join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    
-    link.setAttribute('href', url)
-    link.setAttribute('download', `records_export_${new Date().toISOString().split('T')[0]}.csv`)
-    link.style.visibility = 'hidden'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('Records')
+
+      worksheet.columns = [
+        { header: 'ID', key: 'id', width: 10 },
+        { header: 'Last Name', key: 'lastName', width: 20 },
+        { header: 'First Name', key: 'firstName', width: 20 },
+        { header: 'Middle Name', key: 'middleName', width: 20 },
+        { header: 'Extension Name', key: 'extName', width: 15 },
+        { header: 'Birthdate (DD/MM/YYYY)', key: 'birthdate', width: 25 },
+        { header: 'Age', key: 'age', width: 10 },
+        { header: 'Gender', key: 'gender', width: 12 },
+        { header: 'Civil Status', key: 'civilStatus', width: 15 },
+        { header: 'Barangay', key: 'barangay', width: 20 },
+        { header: 'Designation', key: 'designation', width: 20 },
+        { header: 'UNA Kard', key: 'unaKard', width: 25 },
+        { header: 'IMC', key: 'imc', width: 20 },
+        { header: 'U-Mobile Acct No.', key: 'uMobileAccount', width: 20 },
+        { header: 'LGU Code No.', key: 'lguCodeNo', width: 20 },
+        { header: 'FFRS System Generated No.', key: 'ffrsSystemGeneratedNo', width: 25 },
+        { header: 'FFRS Date Encoded', key: 'ffrsDateEncoded', width: 20 },
+        { header: 'FISHR No.', key: 'fishrNo', width: 20 },
+        { header: 'Contact No.', key: 'contactNo', width: 20 },
+        { header: 'Association', key: 'association', width: 25 },
+        { header: 'No. of Family Members', key: 'familyMembers', width: 20 },
+        { header: 'Organic (Y/N)', key: 'organic', width: 15 },
+        { header: '4P\'s Member (Y/N)', key: 'fourPsMember', width: 15 },
+        { header: 'IP\'s Member (Y/N)', key: 'ipsMember', width: 15 },
+        { header: 'PWD Member (Y/N)', key: 'pwdMember', width: 15 },
+        { header: 'Senior Citizen (Y/N)', key: 'seniorCitizen', width: 15 },
+        { header: 'Solo Parent (Y/N)', key: 'soloParent', width: 15 },
+        { header: 'No. of Severely Stunted Children (0-59 months)', key: 'severelyStuntedChildren', width: 25 },
+        { header: 'Mother Maiden Name', key: 'motherMaidenName', width: 25 },
+        { header: 'Household Head? (Y/N)', key: 'householdHead', width: 20 },
+        { header: 'If No, specify', key: 'householdHeadSpecify', width: 20 },
+        { header: 'Type of ID', key: 'typeOfId', width: 20 },
+        { header: 'ID No.', key: 'idNo', width: 20 },
+        { header: 'Farmer / Fisherfolk / Both', key: 'farmerFisherfolkBoth', width: 25 },
+        { header: 'Farm Type', key: 'farmType', width: 20 },
+        { header: 'Crop Area / No. of Heads', key: 'cropAreaOrHeads', width: 25 },
+        { header: 'Crop Name', key: 'cropName', width: 20 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Registered On', key: 'createdAt', width: 25 },
+        { header: 'Remarks', key: 'remarks', width: 30 },
+      ]
+
+      rows.forEach((row) => {
+        worksheet.addRow(row)
+      })
+
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `records_export_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Failed to export to Excel', err)
+      toast.error('Failed to export records to Excel.')
+    }
   }
 
   const handleOpenImport = () => {
@@ -1120,13 +1226,13 @@ export default function RecordsPage() {
         const payload = record.payload
 
         const idNo = normalizeKeyValue(payload.id_no)
-        if (idNo && !lookupById.has(idNo)) lookupById.set(idNo, record)
+        if (idNo && isValidIdentifier(idNo) && !lookupById.has(idNo)) lookupById.set(idNo, record)
 
         const lguCode = normalizeKeyValue(payload.lgu_code_no)
-        if (lguCode && !lookupByLgu.has(lguCode)) lookupByLgu.set(lguCode, record)
+        if (lguCode && isValidIdentifier(lguCode) && !lookupByLgu.has(lguCode)) lookupByLgu.set(lguCode, record)
 
         const fishrNo = normalizeKeyValue(payload.fishr_no)
-        if (fishrNo && !lookupByFishr.has(fishrNo)) lookupByFishr.set(fishrNo, record)
+        if (fishrNo && isValidIdentifier(fishrNo) && !lookupByFishr.has(fishrNo)) lookupByFishr.set(fishrNo, record)
 
         const nameKey = getUnifiedNormalizedName(payload)
         const birthdate = normalizeKeyValue(payload.birthdate)
@@ -1156,19 +1262,27 @@ export default function RecordsPage() {
 
       const findMatchingRecord = (incoming: ImportRecordPayload): TrackerRecord | undefined => {
         const idNo = normalizeKeyValue(incoming.id_no)
-        if (idNo && lookupById.has(idNo)) return lookupById.get(idNo)
+        if (idNo && isValidIdentifier(idNo) && lookupById.has(idNo)) return lookupById.get(idNo)
 
         const lguCode = normalizeKeyValue(incoming.lgu_code_no)
-        if (lguCode && lookupByLgu.has(lguCode)) return lookupByLgu.get(lguCode)
+        if (lguCode && isValidIdentifier(lguCode) && lookupByLgu.has(lguCode)) return lookupByLgu.get(lguCode)
 
         const fishrNo = normalizeKeyValue(incoming.fishr_no)
-        if (fishrNo && lookupByFishr.has(fishrNo)) return lookupByFishr.get(fishrNo)
+        if (fishrNo && isValidIdentifier(fishrNo) && lookupByFishr.has(fishrNo)) return lookupByFishr.get(fishrNo)
+
+        const checkNameMatch = (matched: TrackerRecord | undefined): TrackerRecord | undefined => {
+          if (!matched) return undefined
+          if (isSamePerson(incoming, matched.payload)) return matched
+          return undefined
+        }
 
         const nameKey = getUnifiedNormalizedName(incoming)
         const birthdate = normalizeKeyValue(incoming.birthdate)
         if (nameKey && birthdate) {
           const personKey = `${nameKey}|${birthdate}`
-          if (lookupByPerson.has(personKey)) return lookupByPerson.get(personKey)
+          const matched = lookupByPerson.get(personKey)
+          const verified = checkNameMatch(matched)
+          if (verified) return verified
         }
 
         // Smarter fallback matching - require more specific information
@@ -1179,12 +1293,16 @@ export default function RecordsPage() {
         const nameParts = nameKey.split(' ')
         if (nameKey && nameParts.length >= 2 && barangay && contact) {
           const fallbackKey = `${nameKey}|${barangay}|${contact}`
-          if (lookupByFallback.has(fallbackKey)) return lookupByFallback.get(fallbackKey)
+          const matched = lookupByFallback.get(fallbackKey)
+          const verified = checkNameMatch(matched)
+          if (verified) return verified
         }
 
         if (nameKey && nameParts.length >= 2 && barangay) {
           const nameBrgyKey = `${nameKey}|${barangay}`
-          if (lookupByNameBrgy.has(nameBrgyKey)) return lookupByNameBrgy.get(nameBrgyKey)
+          const matched = lookupByNameBrgy.get(nameBrgyKey)
+          const verified = checkNameMatch(matched)
+          if (verified) return verified
         }
 
         return undefined
@@ -1600,7 +1718,7 @@ export default function RecordsPage() {
               </div>
               <Button variant="outline" size="sm" onClick={handleExportToExcel} className="gap-2 h-8">
                 <Download className="h-3.5 w-3.5" />
-                Export CSV
+                Export Excel
               </Button>
             </div>
           </Card>
