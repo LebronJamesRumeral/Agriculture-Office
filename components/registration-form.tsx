@@ -28,13 +28,15 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Info
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
 interface FormData {
+  status: string
   lastName: string
   firstName: string
   middleName: string
@@ -111,6 +113,7 @@ const steps = [
 export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => void }) {
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState<FormData>({
+    status: 'Active',
     lastName: '',
     firstName: '',
     middleName: '',
@@ -212,37 +215,50 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
 
   const validateStep = (step: number) => {
     const newErrors: Record<string, string> = {}
+    const isInactive = formData.status === 'Inactive'
 
     if (step === 1) {
-      if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
-      if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
-      if (!formData.middleName.trim()) newErrors.middleName = 'Middle name is required'
-      if (!formData.birthdate) newErrors.birthdate = 'Birthdate is required'
-      if (!formData.age) {
-        newErrors.age = 'Age is required'
-      } else if (Number(formData.age) < 18) {
-        newErrors.age = 'Minimum age is 18'
+      if (!isInactive) {
+        if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required'
+        if (!formData.firstName.trim()) newErrors.firstName = 'First name is required'
+        if (!formData.middleName.trim()) newErrors.middleName = 'Middle name is required'
+        if (!formData.birthdate) newErrors.birthdate = 'Birthdate is required'
+        if (!formData.age) {
+          newErrors.age = 'Age is required'
+        } else if (Number(formData.age) < 18) {
+          newErrors.age = 'Minimum age is 18'
+        }
+        if (!formData.gender) newErrors.gender = 'Gender is required'
+        if (!formData.civilStatus) newErrors.civilStatus = 'Civil status is required'
+        if (!formData.barangay) newErrors.barangay = 'Barangay is required'
+      } else {
+        if (formData.age && Number(formData.age) < 18) {
+          newErrors.age = 'Minimum age is 18'
+        }
       }
-      if (!formData.gender) newErrors.gender = 'Gender is required'
-      if (!formData.civilStatus) newErrors.civilStatus = 'Civil status is required'
-      if (!formData.barangay) newErrors.barangay = 'Barangay is required'
     }
 
     if (step === 2) {
-      if (!formData.contactNo.trim()) newErrors.contactNo = 'Contact number is required'
+      if (!isInactive) {
+        if (!formData.contactNo.trim()) newErrors.contactNo = 'Contact number is required'
+      }
     }
 
     if (step === 3) {
-      if (!formData.householdHead) newErrors.householdHead = 'Household head status is required'
-      if (formData.householdHead === 'No' && !formData.householdHeadSpecify.trim()) {
-        newErrors.householdHeadSpecify = 'Please specify household head'
+      if (!isInactive) {
+        if (!formData.householdHead) newErrors.householdHead = 'Household head status is required'
+        if (formData.householdHead === 'No' && !formData.householdHeadSpecify.trim()) {
+          newErrors.householdHeadSpecify = 'Please specify household head'
+        }
       }
     }
 
     if (step === 4) {
-      if (!formData.typeOfId.trim()) newErrors.typeOfId = 'Type of ID is required'
-      if (!formData.idNo.trim()) newErrors.idNo = 'ID number is required'
-      if (!formData.farmerFisherfolkBoth) newErrors.farmerFisherfolkBoth = 'Please select applicant type'
+      if (!isInactive) {
+        if (!formData.typeOfId.trim()) newErrors.typeOfId = 'Type of ID is required'
+        if (!formData.idNo.trim()) newErrors.idNo = 'ID number is required'
+        if (!formData.farmerFisherfolkBoth) newErrors.farmerFisherfolkBoth = 'Please select applicant type'
+      }
     }
 
     setErrors(newErrors)
@@ -331,8 +347,34 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
 
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
+                <Label htmlFor="status" className="text-sm font-medium">
+                  Registration Status
+                </Label>
+                <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
+                  <SelectTrigger className="border-border/50 bg-background/50">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {formData.status === 'Inactive' && (
+              <Alert className="border-blue-500/50 bg-blue-500/10">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800 dark:text-blue-200">
+                  You are registering an inactive user. All fields are now optional, and validation requirements are relaxed.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
                 <Label htmlFor="lastName" className="text-sm font-medium">
-                  Last Name <span className="text-destructive">*</span>
+                  Last Name {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -353,7 +395,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
 
               <div className="space-y-2">
                 <Label htmlFor="firstName" className="text-sm font-medium">
-                  First Name <span className="text-destructive">*</span>
+                  First Name {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -376,7 +418,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="middleName" className="text-sm font-medium">
-                  Middle Name <span className="text-destructive">*</span>
+                  Middle Name {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <Input
                   id="middleName"
@@ -405,7 +447,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
             <div className="grid gap-6 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="birthdate" className="text-sm font-medium">
-                  Birthdate <span className="text-destructive">*</span>
+                  Birthdate {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -425,7 +467,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
               </div>
               <div className="space-y-2">
                 <Label htmlFor="age" className="text-sm font-medium">
-                  Age <span className="text-destructive">*</span>
+                  Age {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <Input
                   id="age"
@@ -444,7 +486,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
               </div>
               <div className="space-y-2">
                 <Label htmlFor="gender" className="text-sm font-medium">
-                  Gender <span className="text-destructive">*</span>
+                  Gender {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <Select value={formData.gender} onValueChange={(value) => handleChange('gender', value)}>
                   <SelectTrigger className={cn(
@@ -466,7 +508,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="civilStatus" className="text-sm font-medium">
-                  Civil Status <span className="text-destructive">*</span>
+                  Civil Status {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <Select value={formData.civilStatus} onValueChange={(v) => handleChange('civilStatus', v)}>
                   <SelectTrigger className={cn(
@@ -486,7 +528,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
               </div>
               <div className="space-y-2">
                 <Label htmlFor="barangay" className="text-sm font-medium">
-                  Barangay <span className="text-destructive">*</span>
+                  Barangay {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -524,7 +566,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
 
             <div className="space-y-2">
               <Label htmlFor="designation" className="text-sm font-medium">
-                Designation <span className="text-destructive">*</span>
+                Designation {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
               </Label>
               <Input
                 id="designation"
@@ -626,7 +668,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
               </div>
               <div className="space-y-2">
                 <Label htmlFor="contactNo" className="text-sm font-medium">
-                  Contact No. <span className="text-destructive">*</span>
+                  Contact No. {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -781,7 +823,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="householdHead" className="text-sm font-medium">
-                  Household Head? <span className="text-destructive">*</span>
+                  Household Head? {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <Select value={formData.householdHead} onValueChange={(v) => handleChange('householdHead', v)}>
                   <SelectTrigger className={cn(
@@ -824,7 +866,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="typeOfId" className="text-sm font-medium">
-                  Type of ID <span className="text-destructive">*</span>
+                  Type of ID {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <Select value={formData.typeOfId} onValueChange={(v) => handleChange('typeOfId', v)}>
                   <SelectTrigger className={cn(
@@ -857,7 +899,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
               </div>
               <div className="space-y-2">
                 <Label htmlFor="idNo" className="text-sm font-medium">
-                  ID No. <span className="text-destructive">*</span>
+                  ID No. {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <Input
                   id="idNo"
@@ -876,7 +918,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="farmerFisherfolkBoth" className="text-sm font-medium">
-                  Farmer / Fisherfolk / Both <span className="text-destructive">*</span>
+                  Farmer / Fisherfolk / Both {formData.status !== 'Inactive' && <span className="text-destructive">*</span>}
                 </Label>
                 <Select value={formData.farmerFisherfolkBoth} onValueChange={(v) => handleChange('farmerFisherfolkBoth', v)}>
                   <SelectTrigger className={cn(
@@ -1034,7 +1076,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
                   "text-xs font-medium",
                   step.id === currentStep ? "text-primary" : "text-muted-foreground"
                 )}>
-                  {step.fullTitle}
+                  {step.title}
                 </p>
               </div>
             ))}
@@ -1042,7 +1084,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
           {/* Mobile Step Indicator */}
           <div className="mt-16 text-center md:hidden">
             <p className="text-sm font-medium text-foreground">
-              Step {currentStep} of {steps.length}: {steps[currentStep - 1].fullTitle}
+              Step {currentStep} of {steps.length}: {steps[currentStep - 1].title}
             </p>
             <p className="text-xs text-muted-foreground">
               {steps[currentStep - 1].description}

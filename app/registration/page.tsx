@@ -23,6 +23,7 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 interface FormData {
+  status: string
   lastName: string
   firstName: string
   middleName: string
@@ -87,7 +88,7 @@ export default function RegistrationPage() {
         contact_number: data.contactNo || null,
         crop_type: data.cropName || null,
         years_experience: data.yearsExperience ? Number(data.yearsExperience) : null,
-        status: 'Active',
+        status: data.status || 'Active',
         last_name: data.lastName || null,
         first_name: data.firstName || null,
         middle_name: data.middleName || null,
