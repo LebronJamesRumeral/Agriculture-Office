@@ -38,6 +38,13 @@ type MonthlyStats = {
   growth_rate: number
 }
 
+type AssociationStats = {
+  name: string
+  active: number
+  inactive: number
+  total: number
+}
+
 const defaultMetrics: AnalyticsOverview = {
   total_registered: 0,
   active_members: 0,
@@ -57,6 +64,7 @@ export default function DashboardPage() {
     last_month: 0,
     growth_rate: 0
   })
+  const [associations, setAssociations] = useState<AssociationStats[]>([])
   const [loading, setLoading] = useState(true)
   const isRefreshingRef = useRef(false)
 
@@ -116,6 +124,47 @@ export default function DashboardPage() {
         growth_rate: growthRate
       })
 
+      // Fetch records for association statistics
+      const { data: recordsData, error: recordsError } = await supabase
+        .from('records')
+        .select('association, status')
+
+      if (!mounted) return
+
+      if (recordsError) {
+        console.error('Failed to load records for associations', recordsError)
+      } else if (recordsData) {
+        const assocMap: Record<string, { active: number; inactive: number; total: number }> = {}
+        
+        recordsData.forEach(rec => {
+          const rawName = rec.association?.trim() || ''
+          const name = rawName === '' ? 'Unassociated' : rawName
+          const status = rec.status?.toLowerCase().trim() || 'inactive'
+          
+          if (!assocMap[name]) {
+            assocMap[name] = { active: 0, inactive: 0, total: 0 }
+          }
+          
+          assocMap[name].total += 1
+          if (status === 'active') {
+            assocMap[name].active += 1
+          } else {
+            assocMap[name].inactive += 1
+          }
+        })
+
+        const sortedAssoc: AssociationStats[] = Object.keys(assocMap)
+          .map(name => ({
+            name,
+            active: assocMap[name].active,
+            inactive: assocMap[name].inactive,
+            total: assocMap[name].total
+          }))
+          .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+
+        setAssociations(sortedAssoc)
+      }
+
       if (isInitialLoad) setLoading(false)
       isInitialLoad = false
     }
@@ -140,7 +189,7 @@ export default function DashboardPage() {
       .channel('dashboard-monthly-records')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'records' },
+        { event: '*', schema: 'public', table: 'records' },
         () => triggerRefresh()
       )
       .subscribe()
@@ -375,13 +424,11 @@ export default function DashboardPage() {
                   name: 'Farmers',
                   value: metrics.percentage_farmers,
                   count: metrics.total_farmers,
-                  color: 'hsl(var(--accent))',
                 },
                 {
                   name: 'Fisherfolks',
                   value: metrics.percentage_fisherfolks,
                   count: metrics.total_fisherfolks,
-                  color: '#3b82f6',
                 },
               ]}
             />
@@ -483,6 +530,80 @@ export default function DashboardPage() {
             </div>
           </Card>
         </div>
+
+        {/* Association Overview */}
+        <Card className="border border-border/50 bg-gradient-to-br from-background via-background to-muted/20 p-6">
+          <div className="mb-6 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Association Overview</h2>
+              <p className="text-sm text-muted-foreground">Active and inactive members per association</p>
+            </div>
+            <div className="flex gap-4 text-xs">
+              <span className="flex items-center gap-1.5 text-green-600">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                Active Members
+              </span>
+              <span className="flex items-center gap-1.5 text-slate-500">
+                <span className="h-2 w-2 rounded-full bg-slate-400" />
+                Inactive Members
+              </span>
+            </div>
+          </div>
+          
+          {associations.length === 0 ? (
+            <div className="flex h-32 flex-col items-center justify-center rounded-lg border border-dashed border-border/50 text-center">
+              <AlertCircle className="h-8 w-8 text-muted-foreground/60 animate-pulse" />
+              <p className="mt-2 text-sm text-muted-foreground">No association records found</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {associations.map((assoc) => (
+                <div 
+                  key={assoc.name} 
+                  className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border/40 bg-card/50 p-4 transition-all hover:border-border/80 hover:shadow-sm"
+                >
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors text-sm" title={assoc.name}>
+                      {assoc.name}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {assoc.total} {assoc.total === 1 ? 'member' : 'members'} registered
+                    </p>
+                  </div>
+                  
+                  <div className="mt-4 space-y-2">
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Status Distribution</span>
+                      <span className="font-medium text-foreground">
+                        {assoc.total > 0 ? Math.round((assoc.active / assoc.total) * 100) : 0}% Active
+                      </span>
+                    </div>
+                    {/* Dual-color Progress Bar */}
+                    <div className="flex h-2 w-full rounded-full bg-muted overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-500" 
+                        style={{ width: `${assoc.total > 0 ? (assoc.active / assoc.total) * 100 : 0}%` }}
+                      />
+                      <div 
+                        className="h-full bg-slate-300 dark:bg-slate-700 transition-all duration-500" 
+                        style={{ width: `${assoc.total > 0 ? (assoc.inactive / assoc.total) * 100 : 0}%` }}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-1 text-xs">
+                      <span className="flex items-center gap-1 font-medium text-green-600">
+                        {assoc.active} Active
+                      </span>
+                      <span className="flex items-center gap-1 font-medium text-slate-500">
+                        {assoc.inactive} Inactive
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
     </AppLayout>
   )
