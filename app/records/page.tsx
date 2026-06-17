@@ -965,7 +965,7 @@ export default function RecordsPage() {
     try {
       const rows = filteredRecords.map((record: RecordItem, index: number) => {
         return {
-          id: record.id,
+          id: index + 1,
           lastName: record.lastName || '',
           firstName: record.firstName || '',
           middleName: record.middleName || '',
@@ -1012,7 +1012,7 @@ export default function RecordsPage() {
       const worksheet = workbook.addWorksheet('Records')
 
       worksheet.columns = [
-        { header: 'ID', key: 'id', width: 10 },
+        { header: 'System ID no', key: 'id', width: 15 },
         { header: 'Last Name', key: 'lastName', width: 20 },
         { header: 'First Name', key: 'firstName', width: 20 },
         { header: 'Middle Name', key: 'middleName', width: 20 },
