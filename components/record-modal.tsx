@@ -15,15 +15,17 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { RecordItem } from '@/lib/records'
 import ExcelJS from 'exceljs'
+import { supabase } from '@/lib/supabase'
 
 interface RecordModalProps {
   record: RecordItem | null
   isOpen: boolean
   onClose: () => void
   mode: 'view' | 'edit'
+  onSave?: () => void
 }
 
-export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps) {
+export function RecordModal({ record, isOpen, onClose, mode, onSave }: RecordModalProps) {
   const [editData, setEditData] = useState<RecordItem | null>(null)
   const [localMode, setLocalMode] = useState<'view' | 'edit'>(mode)
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
@@ -57,9 +59,75 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
     .filter((value) => value && value.trim().length > 0)
     .join(' ')
 
-  const handleSave = () => {
-    // Mock save - in real app, would call API
-    setLocalMode('view')
+  const handleSave = async () => {
+    if (!editData || !record) return
+
+    try {
+      // Map camelCase to snake_case for database
+      const updateData: any = {
+        last_name: editData.lastName || null,
+        first_name: editData.firstName || null,
+        middle_name: editData.middleName || null,
+        ext_name: editData.extName || null,
+        birthdate: editData.birthdate || null,
+        age: editData.age ? parseInt(editData.age) : null,
+        gender: editData.gender || null,
+        civil_status: editData.civilStatus || null,
+        barangay: editData.barangay || null,
+        designation: editData.designation || null,
+        una_kard: editData.unaKard || null,
+        imc: editData.imc || null,
+        u_mobile_account: editData.uMobileAccount || null,
+        lgu_code_no: editData.lguCodeNo || null,
+        ffrs_system_generated_no: editData.ffrsSystemGeneratedNo || null,
+        ffrs_date_encoded: editData.ffrsDateEncoded || null,
+        fishr_no: editData.fishrNo || null,
+        contact_no: editData.contactNo || null,
+        association: editData.association || null,
+        family_members: editData.familyMembers ? parseInt(editData.familyMembers) : null,
+        organic: editData.organic || null,
+        four_ps_member: editData.fourPsMember || null,
+        ips_member: editData.ipsMember || null,
+        pwd_member: editData.pwdMember || null,
+        senior_citizen: editData.seniorCitizen || null,
+        solo_parent: editData.soloParent || null,
+        severely_stunted_children: editData.severelyStuntedChildren ? parseInt(editData.severelyStuntedChildren) : null,
+        mother_maiden_name: editData.motherMaidenName || null,
+        household_head: editData.householdHead || null,
+        household_head_specify: editData.householdHeadSpecify || null,
+        type_of_id: editData.typeOfId || null,
+        id_no: editData.idNo || null,
+        farmer_fisherfolk_both: editData.farmerFisherfolkBoth || null,
+        farm_type: editData.farmType || null,
+        crop_area_or_heads: editData.cropAreaOrHeads || null,
+        crop_name: editData.cropName || null,
+        remarks: editData.remarks || null,
+        status: editData.status || null,
+      }
+
+      const { error } = await supabase
+        .from('records')
+        .update(updateData)
+        .eq('id', record.id)
+
+      if (error) {
+        console.error('Error saving record:', error)
+        alert('Failed to save record. Please try again.')
+        return
+      }
+
+      // Update the local record state with the saved data
+      setEditData(editData)
+      setLocalMode('view')
+      
+      // Call the onSave callback to refresh parent data
+      if (onSave) {
+        onSave()
+      }
+    } catch (err) {
+      console.error('Error saving record:', err)
+      alert('Failed to save record. Please try again.')
+    }
   }
 
   const handleCancel = () => {
@@ -70,7 +138,9 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
   const handleGenerateQR = async () => {
     try {
       const QR = await import('qrcode')
-      const data = JSON.stringify(current)
+      // Generate URL to the QR view page with the record ID
+      const baseUrl = window.location.origin
+      const data = `${baseUrl}/qr-view/${current.id}`
       const url = await QR.toDataURL(data, { margin: 2, width: 512 })
       setQrCodeUrl(url)
       setShowQrModal(true)
@@ -184,9 +254,6 @@ export function RecordModal({ record, isOpen, onClose, mode }: RecordModalProps)
                 {localMode === 'view' ? 'Record Details' : 'Edit Record'}
               </h2>
               <div className="flex flex-wrap items-center gap-2 text-sm text-white/90">
-                <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">
-                  ID {current.id}
-                </span>
                 <span className="font-medium">
                   {displayName || 'Unnamed Record'}
                 </span>

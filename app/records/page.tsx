@@ -1901,6 +1901,7 @@ export default function RecordsPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         mode={modalMode}
+        onSave={() => loadRecords()}
       />
     </AppLayout>
   )

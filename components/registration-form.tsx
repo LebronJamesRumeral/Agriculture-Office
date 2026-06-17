@@ -570,7 +570,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
               </Label>
               <Input
                 id="designation"
-                placeholder="Enter designation (e.g., Farmer, Fisherfolk)"
+                placeholder="Enter designation (e.g., President, Vice President, Member, Etc.)"
                 value={formData.designation}
                 onChange={(e) => handleChange('designation', e.target.value)}
                 className={cn(

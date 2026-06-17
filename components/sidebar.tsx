@@ -50,12 +50,6 @@ const navItems = [
     description: 'Manage farmer records'
   },
   {
-    href: '/events',
-    label: 'Events',
-    icon: CalendarCheck,
-    description: 'Events and attendance'
-  },
-  {
     href: '/settings',
     label: 'Settings',
     icon: Settings,
