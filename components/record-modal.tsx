@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { X, Edit2, QrCode, FileSpreadsheet } from 'lucide-react'
+import { X, Edit2, QrCode, FileSpreadsheet, Download } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { RecordItem } from '@/lib/records'
@@ -147,6 +147,20 @@ export function RecordModal({ record, isOpen, onClose, mode, onSave }: RecordMod
     } catch (err) {
       console.error('QR generation failed', err)
     }
+  }
+
+  const handleDownloadQR = () => {
+    if (!qrCodeUrl) return
+    const safeName = [derived.lastName, derived.firstName]
+      .filter((v) => v && v.trim().length > 0)
+      .join('_')
+      .replace(/[^a-zA-Z0-9_-]/g, '_') || `record-${current.id}`
+    const a = document.createElement('a')
+    a.href = qrCodeUrl
+    a.download = `QR_${safeName}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   const handleExportExcel = async () => {
@@ -751,7 +765,7 @@ export function RecordModal({ record, isOpen, onClose, mode, onSave }: RecordMod
             </div>
             
             <div className="flex flex-col items-center gap-4">
-              <div className="rounded-lg border border-border bg-white p-4">
+              <div className="rounded-lg border border-border bg-white p-4 shadow-sm">
                 <img 
                   src={qrCodeUrl} 
                   alt="QR Code" 
@@ -761,9 +775,14 @@ export function RecordModal({ record, isOpen, onClose, mode, onSave }: RecordMod
               <p className="text-sm text-muted-foreground text-center">
                 Scan this QR code to view record details
               </p>
-              <p className="text-xs text-muted-foreground">
-                Record ID: {current.id} - {displayName}
-              </p>
+
+              <Button
+                onClick={handleDownloadQR}
+                className="w-full gap-2 bg-gradient-to-r from-emerald-700 to-emerald-600 text-white hover:from-emerald-800 hover:to-emerald-700"
+              >
+                <Download className="h-4 w-4" />
+                Download QR Code
+              </Button>
             </div>
           </Card>
         </>
