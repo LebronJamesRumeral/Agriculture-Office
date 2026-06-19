@@ -23,13 +23,13 @@ import {
   type RecordItem,
   type RecordRow,
 } from '@/lib/records'
-import { 
-  Eye, 
-  Trash2, 
-  Plus, 
-  Download, 
+import {
+  Eye,
+  Trash2,
+  Plus,
+  Download,
   Upload,
-  Search, 
+  Search,
   X,
   Filter,
   ChevronLeft,
@@ -124,7 +124,7 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   barangay: 'barangay',
   designation: 'designation',
   sector: 'designation',
-  
+
   // IDs and Program Cards
   unakard: 'una_kard',
   unakardusscnetworkacctkard: 'una_kard',
@@ -141,7 +141,7 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   fishrno: 'fishr_no',
   typeofid: 'type_of_id',
   idno: 'id_no',
-  
+
   // Household and Membership
   contactnumber: 'contact_number',
   contactno: 'contact_no',
@@ -182,7 +182,7 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   householdheadyn: 'household_head',
   householdheadspecify: 'household_head_specify',
   ifnospecify: 'household_head_specify',
-  
+
   // Farm / Fisherfolk Details
   farmerfisherfolkboth: 'farmer_fisherfolk_both',
   farmerfisherfolk: 'farmer_fisherfolk_both',
@@ -194,7 +194,7 @@ const CSV_FIELD_MAP: Record<string, keyof ImportableRecordRow> = {
   cropareaheads: 'crop_area_or_heads',
   cropname: 'crop_name',
   croptype: 'crop_type',
-  
+
   // System Details
   status: 'status',
   remarks: 'remarks',
@@ -241,7 +241,7 @@ const normalizeDateValue = (valStr: string): string | null => {
     const [, first, second, year] = match
     const day = Number(first)
     const month = Number(second)
-    
+
     // Validate bounds
     if (day > 31 || month > 12) {
       // Heuristic: If first is month (>12 checks)
@@ -270,12 +270,12 @@ const normalizeDateValue = (valStr: string): string | null => {
 
 const findFieldForHeader = (header: string): keyof ImportableRecordRow | null => {
   const normalized = normalizeHeader(header)
-  
+
   // First try direct lookup in CSV_FIELD_MAP
   if (CSV_FIELD_MAP[normalized]) {
     return CSV_FIELD_MAP[normalized]
   }
-  
+
   // Enhanced fuzzy matching with more comprehensive patterns
   const patterns: Array<{ pattern: string; field: keyof ImportableRecordRow }> = [
     // Personal Information
@@ -291,7 +291,7 @@ const findFieldForHeader = (header: string): keyof ImportableRecordRow | null =>
     { pattern: 'barangay', field: 'barangay' },
     { pattern: 'designation', field: 'designation' },
     { pattern: 'sector', field: 'designation' },
-    
+
     // IDs and Program Cards
     { pattern: 'unakard', field: 'una_kard' },
     { pattern: 'ussc', field: 'una_kard' },
@@ -309,7 +309,7 @@ const findFieldForHeader = (header: string): keyof ImportableRecordRow | null =>
     { pattern: 'fishr', field: 'fishr_no' },
     { pattern: 'typeofid', field: 'type_of_id' },
     { pattern: 'idno', field: 'id_no' },
-    
+
     // Household and Membership
     { pattern: 'contactno', field: 'contact_no' },
     { pattern: 'contactnumber', field: 'contact_number' },
@@ -331,7 +331,7 @@ const findFieldForHeader = (header: string): keyof ImportableRecordRow | null =>
     { pattern: 'mothermaiden', field: 'mother_maiden_name' },
     { pattern: 'householdhead', field: 'household_head' },
     { pattern: 'ifnospecify', field: 'household_head_specify' },
-    
+
     // Farm / Fisherfolk Details
     { pattern: 'farmerfisherfolk', field: 'farmer_fisherfolk_both' },
     { pattern: 'farmer', field: 'farmer_fisherfolk_both' },
@@ -341,14 +341,14 @@ const findFieldForHeader = (header: string): keyof ImportableRecordRow | null =>
     { pattern: 'heads', field: 'crop_area_or_heads' },
     { pattern: 'cropname', field: 'crop_name' },
     { pattern: 'croptype', field: 'crop_type' },
-    
+
     // System Details
     { pattern: 'status', field: 'status' },
     { pattern: 'remarks', field: 'remarks' },
     { pattern: 'yearsexperience', field: 'years_experience' },
     { pattern: 'type', field: 'type' },
   ]
-  
+
   // Try to match patterns
   for (const { pattern, field } of patterns) {
     if (normalized.includes(pattern)) {
@@ -359,7 +359,7 @@ const findFieldForHeader = (header: string): keyof ImportableRecordRow | null =>
       return field
     }
   }
-  
+
   return null
 }
 
@@ -393,7 +393,7 @@ const isSamePerson = (rec1: ImportRecordPayload, rec2: ImportRecordPayload): boo
   const first2 = normalizeComparableValue(rec2.first_name)
   const last1 = normalizeComparableValue(rec1.last_name)
   const last2 = normalizeComparableValue(rec2.last_name)
-  
+
   return first1 === first2 && last1 === last2
 }
 
@@ -456,7 +456,7 @@ const parseExcelRows = async (file: File): Promise<Array<Record<string, string>>
   const arrayBuffer = await file.arrayBuffer()
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(arrayBuffer)
-  
+
   let worksheet = workbook.worksheets[0]
   for (const sheet of workbook.worksheets) {
     if (sheet.rowCount > 0) {
@@ -464,14 +464,14 @@ const parseExcelRows = async (file: File): Promise<Array<Record<string, string>>
       break
     }
   }
-  
+
   if (!worksheet || worksheet.rowCount < 2) return []
 
   const rows: Array<Record<string, string>> = []
-  
+
   const headerRow = worksheet.getRow(1)
   const headers: string[] = []
-  
+
   headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
     const val = cell.value
     headers[colNumber] = (cell.text || (val !== null && val !== undefined ? String(val) : '')).trim()
@@ -479,18 +479,18 @@ const parseExcelRows = async (file: File): Promise<Array<Record<string, string>>
 
   worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
     if (rowNumber === 1) return
-    
+
     const rowData: Record<string, string> = {}
     let hasData = false
-    
+
     headers.forEach((header, colNumber) => {
       if (!header) return
       const cell = row.getCell(colNumber)
       let valStr = ''
-      
+
       if (cell.value !== null && cell.value !== undefined) {
         const val = cell.value
-        
+
         if (val instanceof Date) {
           const year = val.getFullYear()
           const month = String(val.getMonth() + 1).padStart(2, '0')
@@ -517,19 +517,19 @@ const parseExcelRows = async (file: File): Promise<Array<Record<string, string>>
           valStr = cell.text || String(val)
         }
       }
-      
+
       const trimmed = valStr.trim()
       if (trimmed) {
         hasData = true
       }
       rowData[header] = trimmed
     })
-    
+
     if (hasData) {
       rows.push(rowData)
     }
   })
-  
+
   return rows
 }
 
@@ -567,26 +567,26 @@ const mapCsvRowToPayload = (
 
     const trimmedValue = value.trim()
     if (trimmedValue === '') {
-      ;(payload as Record<string, unknown>)[field] = null
+      ; (payload as Record<string, unknown>)[field] = null
       return
     }
 
     if (NUMBER_FIELDS.has(field)) {
       const parsed = Number(trimmedValue)
-      ;(payload as Record<string, unknown>)[field] = Number.isNaN(parsed) ? null : Math.round(parsed)
+        ; (payload as Record<string, unknown>)[field] = Number.isNaN(parsed) ? null : Math.round(parsed)
       return
     }
 
     if (DATE_FIELDS.has(field)) {
       const dateValue = normalizeDateValue(trimmedValue)
-      ;(payload as Record<string, unknown>)[field] = dateValue
+        ; (payload as Record<string, unknown>)[field] = dateValue
       if (!dateValue && trimmedValue) {
         console.warn(`[Import] Row ${rowNumber}: Failed to parse date for field "${field}": "${trimmedValue}"`)
       }
       return
     }
 
-    ;(payload as Record<string, unknown>)[field] = trimmedValue
+    ; (payload as Record<string, unknown>)[field] = trimmedValue
   })
 
   if (!payload.contact_number && payload.contact_no) {
@@ -646,7 +646,7 @@ const getUnifiedNormalizedName = (row: {
 }): string => {
   const firstName = cleanNameString(row.first_name)
   const lastName = cleanNameString(row.last_name)
-  
+
   if (firstName && lastName) {
     const parts = [row.first_name, row.middle_name, row.last_name, row.ext_name]
       .map(cleanNameString)
@@ -725,7 +725,7 @@ const getNewAdditionalData = (
     const normalizedExisting = normalizeComparableValue(existingValue)
 
     if (normalizedIncoming !== normalizedExisting) {
-      ;(updatePayload as Record<string, unknown>)[key] = value
+      ; (updatePayload as Record<string, unknown>)[key] = value
       hasAdditional = true
     }
   })
@@ -842,14 +842,14 @@ export default function RecordsPage() {
     const organizations = new Set<string>()
     const idTypes = new Set<string>()
     const barangays = new Set<string>()
-    
+
     records.forEach(record => {
       if ((record as any).sector) sectors.add((record as any).sector)
       if ((record as any).organization) organizations.add((record as any).organization)
       if ((record as any).typeOfId) idTypes.add((record as any).typeOfId)
       if (record.barangay) barangays.add(record.barangay)
     })
-    
+
     return {
       sectors: Array.from(sectors).sort(),
       organizations: Array.from(organizations).sort(),
@@ -868,10 +868,10 @@ export default function RecordsPage() {
       const matchesOrganization =
         filterOrganization === 'All' || (record as any).organization === filterOrganization
       const matchesID = filterID === 'All' || (record as any).typeOfId === filterID
-      
+
       const searchLower = searchQuery.toLowerCase().trim()
       if (searchLower === '') return matchesType && matchesStatus && matchesSector && matchesOrganization && matchesID
-      
+
       const searchableText = [
         record.lastName,
         record.firstName,
@@ -890,9 +890,9 @@ export default function RecordsPage() {
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
-      
+
       const matchesSearch = searchableText.includes(searchLower)
-      
+
       return (
         matchesType &&
         matchesStatus &&
@@ -907,22 +907,22 @@ export default function RecordsPage() {
     return [...filtered].sort((a, b) => {
       const aLast = (a.lastName || '').trim().toLowerCase()
       const bLast = (b.lastName || '').trim().toLowerCase()
-      
+
       if (aLast !== bLast) {
         if (!aLast) return 1
         if (!bLast) return -1
         return aLast.localeCompare(bLast)
       }
-      
+
       const aFirst = (a.firstName || '').trim().toLowerCase()
       const bFirst = (b.firstName || '').trim().toLowerCase()
-      
+
       if (aFirst !== bFirst) {
         if (!aFirst) return 1
         if (!bFirst) return -1
         return aFirst.localeCompare(bFirst)
       }
-      
+
       const aName = (a.name || '').trim().toLowerCase()
       const bName = (b.name || '').trim().toLowerCase()
       return aName.localeCompare(bName)
@@ -948,7 +948,7 @@ export default function RecordsPage() {
 
   const handleDeleteRecord = async (id: number) => {
     if (!confirm('Are you sure you want to delete this record?')) return
-    
+
     const { error } = await supabase.from('records').delete().eq('id', id)
     if (error) {
       console.error('Delete failed', error)
@@ -1086,10 +1086,10 @@ export default function RecordsPage() {
 
     try {
       setIsImporting(true)
-      
+
       const fileName = file.name.toLowerCase()
       let parsedRows: Array<Record<string, string>> = []
-      
+
       if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
         parsedRows = await parseExcelRows(file)
       } else {
@@ -1288,7 +1288,7 @@ export default function RecordsPage() {
         // Smarter fallback matching - require more specific information
         const barangay = normalizeKeyValue(incoming.barangay)
         const contact = normalizeKeyValue(incoming.contact_no ?? incoming.contact_number)
-        
+
         // Only use fallback if name has at least 2 parts (first + last name)
         const nameParts = nameKey.split(' ')
         if (nameKey && nameParts.length >= 2 && barangay && contact) {
@@ -1361,7 +1361,7 @@ export default function RecordsPage() {
             const normalizedExisting = normalizeComparableValue(existingValue)
 
             if (normalizedIncoming !== normalizedExisting) {
-              ;(matchedRecord.payload as Record<string, unknown>)[key] = value
+              ; (matchedRecord.payload as Record<string, unknown>)[key] = value
               hasMergedAdditional = true
             }
           })
@@ -1426,14 +1426,14 @@ export default function RecordsPage() {
       }
 
       await loadRecords()
-      
+
       // Log final import report
       console.log('[Import] Final Import Report:', report)
-      
+
       toast.success('Import complete.', {
         description: `Added ${report.successfullyImported}, updated ${report.updated}, skipped ${report.skippedUnchanged}.`,
       })
-      
+
       // Show detailed report if there are unmapped columns or failed rows
       if (report.unmappedColumns.length > 0) {
         console.warn(`[Import] ${report.unmappedColumns.length} columns were not mapped:`, report.unmappedColumns)
@@ -1441,7 +1441,7 @@ export default function RecordsPage() {
           description: `Unmapped: ${report.unmappedColumns.slice(0, 5).join(', ')}${report.unmappedColumns.length > 5 ? '...' : ''}`,
         })
       }
-      
+
       if (report.failedRows.length > 0) {
         console.error(`[Import] ${report.failedRows.length} rows failed to import:`, report.failedRows)
         toast.error('Some rows failed to import', {
@@ -1467,12 +1467,12 @@ export default function RecordsPage() {
   }
 
   const hasActiveFilters = useMemo(() => {
-    return searchQuery !== '' || 
-           filterType !== 'All' || 
-           filterStatus !== 'All' || 
-           filterSector !== 'All' || 
-           filterOrganization !== 'All' || 
-           filterID !== 'All'
+    return searchQuery !== '' ||
+      filterType !== 'All' ||
+      filterStatus !== 'All' ||
+      filterSector !== 'All' ||
+      filterOrganization !== 'All' ||
+      filterID !== 'All'
   }, [searchQuery, filterType, filterStatus, filterSector, filterOrganization, filterID])
 
   return (
@@ -1652,8 +1652,8 @@ export default function RecordsPage() {
                     <SelectItem value="Indigenous Peoples (IPs)">Indigenous Peoples (IPs)</SelectItem>
                     <SelectItem value="4Ps Beneficiaries">4Ps Beneficiaries</SelectItem>
                     <SelectItem value="PWDs">PWDs</SelectItem>
-                    <SelectItem value="Senior Citizens">Senior Citizens</SelectItem>  
-                    <SelectItem value="None">None</SelectItem>  
+                    <SelectItem value="Senior Citizens">Senior Citizens</SelectItem>
+                    <SelectItem value="None">None</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1665,7 +1665,7 @@ export default function RecordsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="All">All Organizations</SelectItem>                             
+                    <SelectItem value="All">All Organizations</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1867,7 +1867,7 @@ export default function RecordsPage() {
                   } else {
                     pageNum = currentPage - 2 + i;
                   }
-                  
+
                   return (
                     <Button
                       key={i}
