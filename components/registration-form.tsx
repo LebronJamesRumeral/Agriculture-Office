@@ -29,11 +29,31 @@ import {
   ChevronRight,
   CheckCircle,
   AlertTriangle,
-  Info
+  Info,
+  Check,
+  X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+
+interface Association {
+  name: string
+  status: string
+}
 
 interface FormData {
   status: string
@@ -55,7 +75,7 @@ interface FormData {
   ffrsDateEncoded: string
   fishrNo: string
   contactNo: string
-  association: string
+  association: string[]
   familyMembers: string
   organic: string
   fourPsMember: string
@@ -75,6 +95,10 @@ interface FormData {
   cropAreaOrHeads: string
   cropName: string
   remarks: string
+}
+
+interface SubmissionFormData extends Omit<FormData, 'association'> {
+  association: string
 }
 
 const steps = [
@@ -110,8 +134,10 @@ const steps = [
   },
 ]
 
-export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => void }) {
+export function RegistrationForm({ onSubmit }: { onSubmit: (data: SubmissionFormData) => void }) {
   const [currentStep, setCurrentStep] = useState(1)
+  const [associations, setAssociations] = useState<Association[]>([])
+  const [associationPopoverOpen, setAssociationPopoverOpen] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     status: 'Active',
     lastName: '',
@@ -132,7 +158,7 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
     ffrsDateEncoded: '',
     fishrNo: '',
     contactNo: '',
-    association: '',
+    association: [],
     familyMembers: '',
     organic: '',
     fourPsMember: '',
@@ -165,6 +191,55 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
     isDuplicate: false,
     message: ''
   })
+
+  // Fetch existing associations from the database
+  useEffect(() => {
+    const fetchAssociations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('records')
+          .select('association, status')
+          .not('association', 'is', null)
+          .not('association', 'eq', '')
+
+        if (error) {
+          console.error('Error fetching associations:', error)
+          return
+        }
+
+        // Group by association and determine status based on majority of members
+        const assocMap: Record<string, { active: number; inactive: number }> = {}
+        
+        data.forEach(record => {
+          const assocName = record.association?.trim()
+          if (!assocName) return
+          
+          if (!assocMap[assocName]) {
+            assocMap[assocName] = { active: 0, inactive: 0 }
+          }
+          
+          const status = record.status?.toLowerCase() || 'inactive'
+          if (status === 'active') {
+            assocMap[assocName].active += 1
+          } else {
+            assocMap[assocName].inactive += 1
+          }
+        })
+
+        // Convert to array with status
+        const associationsWithStatus: Association[] = Object.keys(assocMap).map(name => ({
+          name,
+          status: assocMap[name].active >= assocMap[name].inactive ? 'Active' : 'Inactive'
+        })).sort((a, b) => a.name.localeCompare(b.name))
+
+        setAssociations(associationsWithStatus)
+      } catch (error) {
+        console.error('Error in fetchAssociations:', error)
+      }
+    }
+
+    fetchAssociations()
+  }, [])
 
   // Check for duplicates when relevant fields change
   useEffect(() => {
@@ -292,15 +367,66 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
           return
         }
       }
-      onSubmit(formData)
+      // Convert association array to comma-separated string for submission
+      const submissionData = {
+        ...formData,
+        association: formData.association.join(', ')
+      }
+      onSubmit(submissionData)
+      // Refresh associations list after submission to include any new associations
+      refreshAssociations()
     }
   }
 
-  const handleChange = (field: keyof FormData, value: string) => {
+  const refreshAssociations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('records')
+        .select('association, status')
+        .not('association', 'is', null)
+        .not('association', 'eq', '')
+
+      if (error) {
+        console.error('Error fetching associations:', error)
+        return
+      }
+
+      // Group by association and determine status based on majority of members
+      const assocMap: Record<string, { active: number; inactive: number }> = {}
+      
+      data.forEach(record => {
+        const assocName = record.association?.trim()
+        if (!assocName) return
+        
+        if (!assocMap[assocName]) {
+          assocMap[assocName] = { active: 0, inactive: 0 }
+        }
+        
+        const status = record.status?.toLowerCase() || 'inactive'
+        if (status === 'active') {
+          assocMap[assocName].active += 1
+        } else {
+          assocMap[assocName].inactive += 1
+        }
+      })
+
+      // Convert to array with status
+      const associationsWithStatus: Association[] = Object.keys(assocMap).map(name => ({
+        name,
+        status: assocMap[name].active >= assocMap[name].inactive ? 'Active' : 'Inactive'
+      })).sort((a, b) => a.name.localeCompare(b.name))
+
+      setAssociations(associationsWithStatus)
+    } catch (error) {
+      console.error('Error in refreshAssociations:', error)
+    }
+  }
+
+  const handleChange = (field: keyof FormData, value: string | string[]) => {
     setFormData((prev) => {
       if (field === 'birthdate') {
         const today = new Date()
-        const birthDate = value ? new Date(value) : null
+        const birthDate = value ? new Date(value as string) : null
         let calculatedAge = ''
 
         if (birthDate && !Number.isNaN(birthDate.getTime())) {
@@ -312,13 +438,24 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
           calculatedAge = age >= 0 ? String(age) : ''
         }
 
-        return { ...prev, birthdate: value, age: calculatedAge }
+        return { ...prev, birthdate: value as string, age: calculatedAge }
       }
 
       return { ...prev, [field]: value }
     })
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: '' }))
+    }
+  }
+
+  const handleAssociationToggle = (associationName: string) => {
+    const currentAssociations = formData.association || []
+    const isSelected = currentAssociations.includes(associationName)
+    
+    if (isSelected) {
+      handleChange('association', currentAssociations.filter(a => a !== associationName))
+    } else {
+      handleChange('association', [...currentAssociations, associationName])
     }
   }
 
@@ -693,15 +830,84 @@ export function RegistrationForm({ onSubmit }: { onSubmit: (data: FormData) => v
         return (
           <div className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="association">Association/Organization</Label>
-                <Input
-                  id="association"
-                  placeholder="Enter association name"
-                  value={formData.association}
-                  onChange={(e) => handleChange('association', e.target.value)}
-                  className="border-border/50 bg-background/50"
-                />
+                <Popover open={associationPopoverOpen} onOpenChange={setAssociationPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full border-border/50 bg-background/50 h-auto min-h-10 px-3 py-2 font-normal text-left hover:bg-background/50",
+                        (!formData.association || formData.association.length === 0) && "text-muted-foreground"
+                      )}
+                    >
+                      {formData.association && formData.association.length > 0 ? (
+                        <div className="flex flex-wrap gap-2 w-full">
+                          {formData.association.map((assoc) => (
+                            <span
+                              key={assoc}
+                              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary max-w-full"
+                            >
+                              <span className="truncate max-w-[200px]">{assoc}</span>
+                              <span
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleAssociationToggle(assoc)
+                                }}
+                                className="cursor-pointer flex-shrink-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        "Select associations"
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full max-w-md p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search associations..." />
+                      <CommandList>
+                        <CommandEmpty>No associations found.</CommandEmpty>
+                        <CommandGroup>
+                          {associations
+                            .filter(assoc => 
+                              assoc.name.toLowerCase().includes('') || true
+                            )
+                            .map((association) => (
+                            <CommandItem
+                              key={association.name}
+                              value={association.name}
+                              onSelect={() => {
+                                handleAssociationToggle(association.name)
+                              }}
+                              className="flex items-start"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4 mt-0.5 flex-shrink-0",
+                                  formData.association?.includes(association.name) ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col min-w-0">
+                                <span className="break-words leading-tight">{association.name}</span>
+                                <span className={cn(
+                                  "text-xs mt-0.5",
+                                  association.status === 'Active' ? "text-green-600" : "text-slate-500"
+                                )}>
+                                  {association.status}
+                                </span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="familyMembers">No. of Family Members</Label>

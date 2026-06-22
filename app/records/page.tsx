@@ -14,6 +14,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { RecordModal } from '@/components/record-modal'
 import { supabase } from '@/lib/supabase'
 import {
@@ -745,6 +763,7 @@ export default function RecordsPage() {
   const [filterStatus, setFilterStatus] = useState<'All' | 'Active' | 'Inactive'>('All')
   const [filterSector, setFilterSector] = useState('All')
   const [filterOrganization, setFilterOrganization] = useState('All')
+  const [filterAssociation, setFilterAssociation] = useState('All')
   const [filterID, setFilterID] = useState('All')
   const [selectedRecord, setSelectedRecord] = useState<RecordItem | null>(null)
   const [modalMode, setModalMode] = useState<'view' | 'edit'>('view')
@@ -752,6 +771,12 @@ export default function RecordsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [showFilters, setShowFilters] = useState(true)
   const itemsPerPage = 10
+
+  // Import preview states
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [previewData, setPreviewData] = useState<ImportRecordPayload[]>([])
+  const [previewFileName, setPreviewFileName] = useState('')
 
   const loadRecords = async () => {
     setRecordsLoading(true)
@@ -840,12 +865,14 @@ export default function RecordsPage() {
   const filterOptions = useMemo(() => {
     const sectors = new Set<string>()
     const organizations = new Set<string>()
+    const associations = new Set<string>()
     const idTypes = new Set<string>()
     const barangays = new Set<string>()
 
     records.forEach(record => {
       if ((record as any).sector) sectors.add((record as any).sector)
       if ((record as any).organization) organizations.add((record as any).organization)
+      if (record.association) associations.add(record.association)
       if ((record as any).typeOfId) idTypes.add((record as any).typeOfId)
       if (record.barangay) barangays.add(record.barangay)
     })
@@ -853,6 +880,7 @@ export default function RecordsPage() {
     return {
       sectors: Array.from(sectors).sort(),
       organizations: Array.from(organizations).sort(),
+      associations: Array.from(associations).sort(),
       idTypes: Array.from(idTypes).sort(),
       barangays: Array.from(barangays).sort()
     }
@@ -867,10 +895,12 @@ export default function RecordsPage() {
       const matchesSector = filterSector === 'All' || (record as any).sector === filterSector
       const matchesOrganization =
         filterOrganization === 'All' || (record as any).organization === filterOrganization
+      const matchesAssociation =
+        filterAssociation === 'All' || record.association === filterAssociation
       const matchesID = filterID === 'All' || (record as any).typeOfId === filterID
 
       const searchLower = searchQuery.toLowerCase().trim()
-      if (searchLower === '') return matchesType && matchesStatus && matchesSector && matchesOrganization && matchesID
+      if (searchLower === '') return matchesType && matchesStatus && matchesSector && matchesOrganization && matchesAssociation && matchesID
 
       const searchableText = [
         record.lastName,
@@ -898,6 +928,7 @@ export default function RecordsPage() {
         matchesStatus &&
         matchesSector &&
         matchesOrganization &&
+        matchesAssociation &&
         matchesID &&
         matchesSearch
       )
@@ -927,7 +958,7 @@ export default function RecordsPage() {
       const bName = (b.name || '').trim().toLowerCase()
       return aName.localeCompare(bName)
     })
-  }, [records, searchQuery, filterType, filterStatus, filterSector, filterOrganization, filterID])
+  }, [records, searchQuery, filterType, filterStatus, filterSector, filterOrganization, filterAssociation, filterID])
 
   // Pagination
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage)
@@ -938,7 +969,7 @@ export default function RecordsPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, filterType, filterStatus, filterSector, filterOrganization, filterID])
+  }, [searchQuery, filterType, filterStatus, filterSector, filterOrganization, filterAssociation, filterID])
 
   const handleViewRecord = (record: RecordItem) => {
     setSelectedRecord(record)
@@ -1099,6 +1130,8 @@ export default function RecordsPage() {
 
       if (parsedRows.length === 0) {
         toast.error('No valid rows found in the selected file.')
+        setIsImporting(false)
+        event.target.value = ''
         return
       }
 
@@ -1131,7 +1164,43 @@ export default function RecordsPage() {
         toast.error('No importable values found. Please check your file columns.', {
           description: `Unmapped columns: ${report.unmappedColumns.join(', ')}`,
         })
+        setIsImporting(false)
+        event.target.value = ''
         return
+      }
+
+      // Store preview data and show preview modal
+      setPreviewData(mappedRows)
+      setPreviewFileName(file.name)
+      setShowPreviewModal(true)
+    } catch (error) {
+      console.error('File import failed', error)
+      toast.error('Unable to import file. Please try again.')
+    } finally {
+      setIsImporting(false)
+      event.target.value = ''
+    }
+  }
+
+  const executeImport = async () => {
+    try {
+      setIsImporting(true)
+      setShowConfirmDialog(false)
+      setShowPreviewModal(false)
+
+      const mappedRows = previewData
+
+      // Initialize import report
+      const report: ImportReport = {
+        totalRows: mappedRows.length,
+        successfullyImported: 0,
+        updated: 0,
+        skippedUnchanged: 0,
+        failed: 0,
+        successfullyMappedFields: [],
+        unmappedColumns: [],
+        failedRows: [],
+        errors: [],
       }
 
       const existingData: ExistingImportRecord[] = []
@@ -1453,7 +1522,8 @@ export default function RecordsPage() {
       toast.error('Unable to import file. Please try again.')
     } finally {
       setIsImporting(false)
-      event.target.value = ''
+      setPreviewData([])
+      setPreviewFileName('')
     }
   }
 
@@ -1463,6 +1533,7 @@ export default function RecordsPage() {
     setFilterStatus('All')
     setFilterSector('All')
     setFilterOrganization('All')
+    setFilterAssociation('All')
     setFilterID('All')
   }
 
@@ -1472,8 +1543,9 @@ export default function RecordsPage() {
       filterStatus !== 'All' ||
       filterSector !== 'All' ||
       filterOrganization !== 'All' ||
+      filterAssociation !== 'All' ||
       filterID !== 'All'
-  }, [searchQuery, filterType, filterStatus, filterSector, filterOrganization, filterID])
+  }, [searchQuery, filterType, filterStatus, filterSector, filterOrganization, filterAssociation, filterID])
 
   return (
     <AppLayout>
@@ -1611,14 +1683,14 @@ export default function RecordsPage() {
             </div>
 
             {/* Filter Grid */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
               <div className="space-y-2">
                 <label className="text-xs font-medium text-foreground">Type</label>
                 <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
                   <SelectTrigger className="h-9 border-border/50 bg-background/50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-w-[200px]">
                     <SelectItem value="All">All Types</SelectItem>
                     <SelectItem value="Farmer">Farmers</SelectItem>
                     <SelectItem value="Fisherfolk">Fisherfolks</SelectItem>
@@ -1633,7 +1705,7 @@ export default function RecordsPage() {
                   <SelectTrigger className="h-9 border-border/50 bg-background/50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-w-[200px]">
                     <SelectItem value="All">All Status</SelectItem>
                     <SelectItem value="Active">Active</SelectItem>
                     <SelectItem value="Inactive">Inactive</SelectItem>
@@ -1647,7 +1719,7 @@ export default function RecordsPage() {
                   <SelectTrigger className="h-9 border-border/50 bg-background/50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-w-[250px]">
                     <SelectItem value="All">All Sectors</SelectItem>
                     <SelectItem value="Indigenous Peoples (IPs)">Indigenous Peoples (IPs)</SelectItem>
                     <SelectItem value="4Ps Beneficiaries">4Ps Beneficiaries</SelectItem>
@@ -1659,13 +1731,15 @@ export default function RecordsPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-medium text-foreground">Organization</label>
-                <Select value={filterOrganization} onValueChange={setFilterOrganization}>
-                  <SelectTrigger className="h-9 border-border/50 bg-background/50">
-                    <SelectValue />
+                <label className="text-xs font-medium text-foreground">Association</label>
+                <Select value={filterAssociation} onValueChange={setFilterAssociation}>
+                 <SelectTrigger className="h-9 w-full max-w-[220px] border-border/50 bg-background/50">                    <SelectValue className="truncate" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All Organizations</SelectItem>
+                  <SelectContent className="max-h-[250px] max-w-xs">
+                    <SelectItem value="All">All Associations</SelectItem>
+                    {filterOptions.associations.map(assoc => (
+                      <SelectItem key={assoc} value={assoc}>{assoc}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1679,7 +1753,7 @@ export default function RecordsPage() {
                       <SelectValue placeholder="All ID Types" />
                     </div>
                   </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
+                  <SelectContent className="max-h-[300px] max-w-[250px]">
                     <SelectItem value="All">All ID Types</SelectItem>
                     <SelectItem value="Philippine Passport">Philippine Passport</SelectItem>
                     <SelectItem value="National ID">National ID</SelectItem>
@@ -1903,6 +1977,70 @@ export default function RecordsPage() {
         mode={modalMode}
         onSave={() => loadRecords()}
       />
+
+      {/* Import Preview Modal */}
+      <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Import Preview</DialogTitle>
+            <DialogDescription>
+              Review the data from {previewFileName} before importing. Total records: {previewData.length}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto border rounded-md">
+            <table className="w-full text-sm">
+              <thead className="bg-muted sticky top-0">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium border-b">No.</th>
+                  <th className="px-3 py-2 text-left font-medium border-b">Last Name</th>
+                  <th className="px-3 py-2 text-left font-medium border-b">First Name</th>
+                  <th className="px-3 py-2 text-left font-medium border-b">Middle Name</th>
+                  <th className="px-3 py-2 text-left font-medium border-b">Barangay</th>
+                  <th className="px-3 py-2 text-left font-medium border-b">Contact</th>
+                  <th className="px-3 py-2 text-left font-medium border-b">Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previewData.map((row, index) => (
+                  <tr key={index} className="hover:bg-muted/50">
+                    <td className="px-3 py-2 border-b">{index + 1}</td>
+                    <td className="px-3 py-2 border-b">{row.last_name || '—'}</td>
+                    <td className="px-3 py-2 border-b">{row.first_name || '—'}</td>
+                    <td className="px-3 py-2 border-b">{row.middle_name || '—'}</td>
+                    <td className="px-3 py-2 border-b">{row.barangay || '—'}</td>
+                    <td className="px-3 py-2 border-b">{row.contact_number || row.contact_no || '—'}</td>
+                    <td className="px-3 py-2 border-b">{row.farmer_fisherfolk_both || row.type || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowPreviewModal(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => setShowConfirmDialog(true)} className="bg-primary">
+              Import
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure do you want to import this?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will import {previewData.length} records into the database. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction onClick={executeImport}>Yes</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   )
 }

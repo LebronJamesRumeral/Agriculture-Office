@@ -17,6 +17,7 @@ import {
   ArrowDownRight
 } from 'lucide-react'
 import { AnalyticsChart } from '@/components/analytics-chart'
+import { AssociationModal } from '@/components/association-modal'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 
@@ -66,108 +67,125 @@ export default function DashboardPage() {
   })
   const [associations, setAssociations] = useState<AssociationStats[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedAssociation, setSelectedAssociation] = useState<AssociationStats | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
   const isRefreshingRef = useRef(false)
+  const itemsPerPage = 12
+
+  const loadMetrics = async (isInitialLoad = false) => {
+    if (isInitialLoad) setLoading(true)
+    
+    // Fetch main analytics
+    const { data: analyticsData, error: analyticsError } = await supabase
+      .from('analytics_overview')
+      .select('*')
+      .single()
+    
+    if (analyticsError || !analyticsData) {
+      console.error('Failed to load analytics', analyticsError)
+    } else {
+      setMetrics(analyticsData as AnalyticsOverview)
+    }
+
+    // Fetch monthly registration stats
+    const now = new Date()
+    const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
+    const firstDayNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
+
+    // Get this month's registrations
+    const { count: thisMonthCount, error: thisMonthError } = await supabase
+      .from('records')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', firstDayThisMonth)
+      .lt('created_at', firstDayNextMonth)
+
+    // Get last month's registrations
+    const { count: lastMonthCount, error: lastMonthError } = await supabase
+      .from('records')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', firstDayLastMonth)
+      .lt('created_at', firstDayThisMonth)
+
+    const safeThisMonthCount = thisMonthCount ?? 0
+    const safeLastMonthCount = lastMonthCount ?? 0
+    const growthRate = safeLastMonthCount > 0
+      ? ((safeThisMonthCount - safeLastMonthCount) / safeLastMonthCount) * 100 
+      : 0
+
+    setMonthlyStats({
+      this_month: safeThisMonthCount,
+      last_month: safeLastMonthCount,
+      growth_rate: growthRate
+    })
+
+    // Fetch records for association statistics
+    const { data: recordsData, error: recordsError } = await supabase
+      .from('records')
+      .select('association, status')
+
+    if (recordsError) {
+      console.error('Failed to load records for associations', recordsError)
+    } else if (recordsData) {
+      const assocMap: Record<string, { active: number; inactive: number; total: number }> = {}
+      
+      recordsData.forEach(rec => {
+        const rawName = rec.association?.trim() || ''
+        const name = rawName === '' ? 'Unassociated' : rawName
+        const status = rec.status?.toLowerCase().trim() || 'inactive'
+        
+        if (!assocMap[name]) {
+          assocMap[name] = { active: 0, inactive: 0, total: 0 }
+        }
+        
+        assocMap[name].total += 1
+        if (status === 'active') {
+          assocMap[name].active += 1
+        } else {
+          assocMap[name].inactive += 1
+        }
+      })
+
+      const sortedAssoc: AssociationStats[] = Object.keys(assocMap)
+        .map(name => ({
+          name,
+          active: assocMap[name].active,
+          inactive: assocMap[name].inactive,
+          total: assocMap[name].total
+        }))
+        .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+
+      setAssociations(sortedAssoc)
+      setCurrentPage(1)
+    }
+
+    if (isInitialLoad) setLoading(false)
+  }
+
+  const handleAssociationClick = (assoc: AssociationStats) => {
+    setSelectedAssociation(assoc)
+    setIsModalOpen(true)
+  }
+
+  const handleModalClose = () => {
+    setIsModalOpen(false)
+    setSelectedAssociation(null)
+  }
+
+  const handleRefresh = () => {
+    // Trigger a refresh of the metrics
+    if (!isRefreshingRef.current) {
+      isRefreshingRef.current = true
+      void loadMetrics().finally(() => {
+        isRefreshingRef.current = false
+      })
+    }
+  }
 
   useEffect(() => {
     let mounted = true
     let refreshTimeout: number | undefined
-    let isInitialLoad = true
-
-    const loadMetrics = async () => {
-      if (isInitialLoad) setLoading(true)
-      
-      // Fetch main analytics
-      const { data: analyticsData, error: analyticsError } = await supabase
-        .from('analytics_overview')
-        .select('*')
-        .single()
-      
-      if (!mounted) return
-      
-      if (analyticsError || !analyticsData) {
-        console.error('Failed to load analytics', analyticsError)
-      } else {
-        setMetrics(analyticsData as AnalyticsOverview)
-      }
-
-      // Fetch monthly registration stats
-      const now = new Date()
-      const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-      const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
-      const firstDayNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
-
-      // Get this month's registrations
-      const { count: thisMonthCount, error: thisMonthError } = await supabase
-        .from('records')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', firstDayThisMonth)
-        .lt('created_at', firstDayNextMonth)
-
-      // Get last month's registrations
-      const { count: lastMonthCount, error: lastMonthError } = await supabase
-        .from('records')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', firstDayLastMonth)
-        .lt('created_at', firstDayThisMonth)
-
-      if (!mounted) return
-
-      const safeThisMonthCount = thisMonthCount ?? 0
-      const safeLastMonthCount = lastMonthCount ?? 0
-      const growthRate = safeLastMonthCount > 0
-        ? ((safeThisMonthCount - safeLastMonthCount) / safeLastMonthCount) * 100 
-        : 0
-
-      setMonthlyStats({
-        this_month: safeThisMonthCount,
-        last_month: safeLastMonthCount,
-        growth_rate: growthRate
-      })
-
-      // Fetch records for association statistics
-      const { data: recordsData, error: recordsError } = await supabase
-        .from('records')
-        .select('association, status')
-
-      if (!mounted) return
-
-      if (recordsError) {
-        console.error('Failed to load records for associations', recordsError)
-      } else if (recordsData) {
-        const assocMap: Record<string, { active: number; inactive: number; total: number }> = {}
-        
-        recordsData.forEach(rec => {
-          const rawName = rec.association?.trim() || ''
-          const name = rawName === '' ? 'Unassociated' : rawName
-          const status = rec.status?.toLowerCase().trim() || 'inactive'
-          
-          if (!assocMap[name]) {
-            assocMap[name] = { active: 0, inactive: 0, total: 0 }
-          }
-          
-          assocMap[name].total += 1
-          if (status === 'active') {
-            assocMap[name].active += 1
-          } else {
-            assocMap[name].inactive += 1
-          }
-        })
-
-        const sortedAssoc: AssociationStats[] = Object.keys(assocMap)
-          .map(name => ({
-            name,
-            active: assocMap[name].active,
-            inactive: assocMap[name].inactive,
-            total: assocMap[name].total
-          }))
-          .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
-
-        setAssociations(sortedAssoc)
-      }
-
-      if (isInitialLoad) setLoading(false)
-      isInitialLoad = false
-    }
 
     const triggerRefresh = () => {
       if (!mounted) return
@@ -183,7 +201,7 @@ export default function DashboardPage() {
       }, 250)
     }
 
-    void loadMetrics()
+    void loadMetrics(true)
 
     const channel = supabase
       .channel('dashboard-monthly-records')
@@ -203,6 +221,16 @@ export default function DashboardPage() {
 
   // Calculate registration rate (percentage of total population)
   const registrationRate = 75 // This would come from a separate table with target population data
+
+  // Pagination logic
+  const totalPages = Math.ceil(associations.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedAssociations = associations.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
 
   const MetricSkeleton = () => (
     <div className="h-32 animate-pulse rounded-xl bg-muted/50" />
@@ -556,11 +584,13 @@ export default function DashboardPage() {
               <p className="mt-2 text-sm text-muted-foreground">No association records found</p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {associations.map((assoc) => (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {paginatedAssociations.map((assoc) => (
                 <div 
                   key={assoc.name} 
-                  className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border/40 bg-card/50 p-4 transition-all hover:border-border/80 hover:shadow-sm"
+                  className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-border/40 bg-card/50 p-4 transition-all hover:border-border/80 hover:shadow-sm cursor-pointer"
+                  onClick={() => handleAssociationClick(assoc)}
                 >
                   <div className="space-y-1">
                     <h3 className="font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors text-sm" title={assoc.name}>
@@ -602,9 +632,58 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                <div className="text-sm text-muted-foreground">
+                  Showing {startIndex + 1} to {Math.min(endIndex, associations.length)} of {associations.length} associations
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 text-sm rounded-md border border-border/50 bg-card hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                          currentPage === page
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'border-border/50 bg-card hover:bg-muted/50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 text-sm rounded-md border border-border/50 bg-card hover:bg-muted/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </Card>
       </div>
+
+      {/* Association Modal */}
+      <AssociationModal
+        association={selectedAssociation}
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onRefresh={handleRefresh}
+      />
     </AppLayout>
   )
 }
