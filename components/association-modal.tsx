@@ -247,25 +247,26 @@ export function AssociationModal({ association, isOpen, onClose, onRefresh }: As
                   </Button>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     onClick={handleSaveEdit}
                     className="rounded-full border border-white/20 bg-white/10 text-white hover:bg-white/20"
                     title="Save"
                     disabled={isSaving}
                   >
-                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Edit className="h-5 w-5" />}
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    SAVE
                   </Button>
                 </>
               ) : (
                 <>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     onClick={handleEdit}
                     className="rounded-full border border-white/20 bg-white/10 text-white hover:bg-white/20"
                     title="Edit"
                   >
-                    <Edit className="h-5 w-5" />
+                    EDIT
                   </Button>
                   <Button
                     variant="ghost"
