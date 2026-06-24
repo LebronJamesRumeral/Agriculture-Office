@@ -419,7 +419,7 @@ export function AssociationModal({ association, isOpen, onClose, onRefresh }: As
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Association</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this association? This will also delete all {association.total} members registered under this association. This action cannot be undone.
+              Are you sure you want to delete this association? This will also delete all {association.total} members under this association. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -597,7 +597,7 @@ export default function DashboardPage() {
                       {assoc.name}
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      {assoc.total} {assoc.total === 1 ? 'member' : 'members'} registered
+                      {assoc.total} {assoc.total === 1 ? 'member' : 'members'}
                     </p>
                   </div>
                   
