@@ -229,7 +229,7 @@ export function AssociationModal({ association, isOpen, onClose, onRefresh }: As
                 </h2>
               )}
               <p className="text-sm text-white/90">
-                {association.total} {association.total === 1 ? 'member' : 'members'} registered
+                {association.total} {association.total === 1 ? 'member' : 'members'}
               </p>
             </div>
             <div className="flex items-center gap-2">
